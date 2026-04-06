@@ -37,6 +37,9 @@ outputs/
 # macOS
 .DS_Store
 
+# Personal notes
+CLAUDE.local.md
+
 # IDE
 .vscode/
 .idea/
