@@ -2,37 +2,37 @@ Model         : LightGBM v2 (+ratio features)
 Target        : label_7d
 Test from year: 2010
 
-ROC-AUC       v1=0.8563  v2=0.8560  ▼0.0003
-Avg Precision v1=0.7752  v2=0.7751  ▼0.0002
+ROC-AUC       v1=0.8563  v2=0.8561  ▼0.0002
+Avg Precision v1=0.7752  v2=0.7754  ▲0.0001
 
               precision    recall  f1-score   support
 
-    No event       0.88      0.82      0.85    174912
-   Event ≥M5       0.61      0.72      0.66     67814
+    No event       0.88      0.81      0.85    174912
+   Event ≥M5       0.60      0.73      0.66     67814
 
     accuracy                           0.79    242726
-   macro avg       0.75      0.77      0.75    242726
-weighted avg       0.81      0.79      0.80    242726
+   macro avg       0.74      0.77      0.75    242726
+weighted avg       0.80      0.79      0.79    242726
 
 
 Top 20 features:
-magnitude                    279
-mag_mean_90d                 224
-count_90d                    194
-dist_to_plate_boundary_km    190
-energy_90d                   152
-elapsed_since_last_s         130
-depth_mean_90d               129
-depth_std_90d                110
-count_30d                    100
-mag_excess                    96
-count_7d                      90
-depth                         84
-energy_1d                     84
-count_1d                      72
-energy_30d                    70
-mag_std_90d                   70
+magnitude                    297
+mag_mean_90d                 265
+count_90d                    199
+dist_to_plate_boundary_km    194
+energy_90d                   166
+depth_mean_90d               151
+depth_std_90d                149
+elapsed_since_last_s         127
+count_30d                    116
+depth                        106
+mag_excess                   106
+count_7d                     102
+energy_1d                     91
+mag_std_90d                   86
+count_1d                      82
+energy_7d                     69
+energy_30d                    69
 b_value_90d                   69
-mag_mean_30d                  50
-energy_7d                     48
-depth_mean_7d                 45
+accel_energy                  57
+depth_mean_30d                56

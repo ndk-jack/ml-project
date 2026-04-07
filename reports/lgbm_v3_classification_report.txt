@@ -1,33 +1,33 @@
-v2 ROC-AUC: 0.8560  →  v3 ROC-AUC: 0.8581  (▲0.0021)
+v2 ROC-AUC: 0.8560  →  v3 ROC-AUC: 0.8583  (▲0.0023)
 
               precision    recall  f1-score   support
 
-    No event       0.88      0.82      0.85    174912
-   Event ≥M5       0.60      0.73      0.66     67814
+    No event       0.88      0.83      0.85    174912
+   Event ≥M5       0.62      0.72      0.66     67814
 
-    accuracy                           0.79    242726
-   macro avg       0.74      0.77      0.75    242726
-weighted avg       0.81      0.79      0.80    242726
+    accuracy                           0.80    242726
+   macro avg       0.75      0.77      0.76    242726
+weighted avg       0.81      0.80      0.80    242726
 
 
 Top 20:
-background_rate_yr           353
-mag_mean_90d                 258
-magnitude                    255
-dist_to_plate_boundary_km    140
-energy_90d                   139
-count_90d                    138
+background_rate_yr           348
+magnitude                    269
+mag_mean_90d                 245
+energy_90d                   143
+count_90d                    141
+dist_to_plate_boundary_km    131
 elapsed_since_last_s         126
-mag_excess                   121
-count_7d                     111
-wsm_dist_km                   93
-depth_std_90d                 92
-count_30d                     92
-energy_1d                     85
-depth                         79
-b_value_90d                   78
-count_1d                      76
-energy_30d                    75
-energy_7d                     71
-depth_mean_90d                64
-fault_slip_type_enc           62
+count_7d                     114
+mag_excess                   105
+count_30d                    102
+depth_std_90d                101
+wsm_dist_km                   89
+count_1d                      83
+energy_1d                     78
+depth                         76
+energy_30d                    76
+b_value_90d                   76
+energy_7d                     58
+depth_mean_90d                54
+fault_slip_type_enc           53

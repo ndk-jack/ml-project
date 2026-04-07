@@ -2,11 +2,13 @@
 add_ratio_features.py — Add acceleration/ratio features to dataset.csv
 and retrain LightGBM to attempt to beat ROC-AUC 0.856.
 
-New features (4):
+New features (3):
   accel_count    = count_7d  / (count_90d / 90 * 7)   seismic acceleration
   accel_energy   = energy_7d / (energy_90d / 90 * 7)  energy acceleration
-  b_value_trend  = b_value_7d - b_value_90d            stress regime change
   mag_excess     = magnitude  - mag_mean_90d           anomaly vs background
+
+Removed: b_value_trend (b_value_7d - b_value_90d) — NaN fill with 1.0
+  caused extreme values (mean ~1.8 billion), hurting model stability.
 
 Usage : python3 src/add_ratio_features.py
 Output:
@@ -51,11 +53,7 @@ def add_ratio_features(df: pd.DataFrame) -> pd.DataFrame:
     # 2. Energy acceleration
     df["accel_energy"]  = df["energy_7d"] / (background_energy_7d + EPS)
 
-    # 3. b-value trend (short term minus long term)
-    #    Negative = b-value dropping = stress increasing
-    df["b_value_trend"] = df["b_value_7d"].fillna(1.0) - df["b_value_90d"].fillna(1.0)
-
-    # 4. Magnitude excess vs 90-day local background
+    # 3. Magnitude excess vs 90-day local background
     #    Positive = this event is larger than usual for this zone
     df["mag_excess"]    = df["magnitude"] - df["mag_mean_90d"].fillna(df["magnitude"])
 
@@ -140,7 +138,7 @@ def main():
     # ── Add ratio features ────────────────────────────────────────────────────
     print("\n── Adding ratio / acceleration features ────────────────────────")
     df = add_ratio_features(df)
-    new_feats = ["accel_count", "accel_energy", "b_value_trend", "mag_excess"]
+    new_feats = ["accel_count", "accel_energy", "mag_excess"]
     print(f"   Added: {new_feats}")
     for f in new_feats:
         print(f"   {f:<20}  mean={df[f].mean():.3f}  std={df[f].std():.3f}  "
@@ -170,10 +168,10 @@ def main():
         label="v1 — 51 features (baseline)"
     )
 
-    print("\n   Training v2 (55 features, +ratio) …")
+    print("\n   Training v2 (54 features, +ratio) …")
     model_v2, roc_v2, prec_v2, report_v2 = train_and_eval(
         X_train_v2, y_train, X_test_v2, y_test,
-        label="v2 — 55 features (+accel_count, accel_energy, b_value_trend, mag_excess)"
+        label="v2 — 54 features (+accel_count, accel_energy, mag_excess)"
     )
 
     # ── Delta ─────────────────────────────────────────────────────────────────
