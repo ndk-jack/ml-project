@@ -1,0 +1,119 @@
+{
+  "split": {
+    "train": "<=2018",
+    "val": "2019-2022",
+    "test": "2023-2025"
+  },
+  "classifier": {
+    "n_estimators": 200,
+    "class_weight": "balanced_subsample",
+    "random_state": 42
+  },
+  "merge": {
+    "strategy": "dedup clean_updated on (Date,Lat,Lon,Depth) then left-join on exact floats",
+    "matched": 539030,
+    "unmatched": 792,
+    "match_pct": 99.8533
+  },
+  "best_setup": "baseline_v1",
+  "best_threshold": 0.1259,
+  "v1_reference": {
+    "val_prauc": 0.3479,
+    "val_f2": 0.546,
+    "test_prauc": 0.3504,
+    "test_f2": 0.52
+  },
+  "results": {
+    "baseline_v1": {
+      "n_features": 10,
+      "threshold": 0.1259,
+      "val": {
+        "pr_auc": 0.3479,
+        "precision": 0.2602,
+        "recall": 0.7527,
+        "f1": 0.3867,
+        "f2": 0.546,
+        "confusion_matrix": [
+          [
+            58704,
+            1177
+          ],
+          [
+            136,
+            414
+          ]
+        ]
+      },
+      "test": {
+        "pr_auc": 0.3504,
+        "precision": 0.292,
+        "recall": 0.6462,
+        "f1": 0.4022,
+        "f2": 0.52,
+        "confusion_matrix": [
+          [
+            47576,
+            611
+          ],
+          [
+            138,
+            252
+          ]
+        ]
+      },
+      "delta_vs_v1": {
+        "val_prauc": 0.0,
+        "val_f2": 0.0,
+        "test_prauc": 0.0,
+        "test_f2": 0.0
+      },
+      "verdict": "NO IMPROVEMENT"
+    },
+    "engineered": {
+      "n_features": 18,
+      "threshold": 0.1105,
+      "val": {
+        "pr_auc": 0.349,
+        "precision": 0.2501,
+        "recall": 0.7673,
+        "f1": 0.3773,
+        "f2": 0.5428,
+        "confusion_matrix": [
+          [
+            58616,
+            1265
+          ],
+          [
+            128,
+            422
+          ]
+        ]
+      },
+      "test": {
+        "pr_auc": 0.3487,
+        "precision": 0.2889,
+        "recall": 0.6897,
+        "f1": 0.4073,
+        "f2": 0.5399,
+        "confusion_matrix": [
+          [
+            47525,
+            662
+          ],
+          [
+            121,
+            269
+          ]
+        ]
+      },
+      "delta_vs_v1": {
+        "val_prauc": 0.0011,
+        "val_f2": -0.0032,
+        "test_prauc": -0.0017,
+        "test_f2": 0.0199
+      },
+      "verdict": "MIXED"
+    }
+  },
+  "feature_engineering_verdict": "dead_end"
+}
