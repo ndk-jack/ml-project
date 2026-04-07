@@ -1,0 +1,140 @@
+{
+  "split": {
+    "train": "<=2018",
+    "val": "2019-2022",
+    "test": "2023-2025"
+  },
+  "classifier": {
+    "n_estimators": 200,
+    "class_weight": "balanced_subsample",
+    "random_state": 42
+  },
+  "weighting_scheme": {
+    "method": "piecewise_bins",
+    "bins": [
+      {
+        "from": 1900,
+        "to": 1989,
+        "weight": 1.0
+      },
+      {
+        "from": 1990,
+        "to": 2004,
+        "weight": 1.5
+      },
+      {
+        "from": 2005,
+        "to": 2012,
+        "weight": 2.0
+      },
+      {
+        "from": 2013,
+        "to": 2018,
+        "weight": 3.0
+      }
+    ],
+    "raw_train_dangerous_pct": 3.1297,
+    "weighted_train_dangerous_pct": 2.2519,
+    "val_dangerous_pct": 0.9101,
+    "test_dangerous_pct": 0.8028
+  },
+  "best_setup": "temporal_weighted",
+  "best_threshold": 0.1105,
+  "v1_reference": {
+    "val_prauc": 0.3479,
+    "val_f2": 0.546,
+    "test_prauc": 0.3504,
+    "test_f2": 0.52
+  },
+  "results": {
+    "baseline_v1": {
+      "threshold": 0.1259,
+      "val": {
+        "pr_auc": 0.3479,
+        "precision": 0.2602,
+        "recall": 0.7527,
+        "f1": 0.3867,
+        "f2": 0.546,
+        "confusion_matrix": [
+          [
+            58704,
+            1177
+          ],
+          [
+            136,
+            414
+          ]
+        ]
+      },
+      "test": {
+        "pr_auc": 0.3504,
+        "precision": 0.292,
+        "recall": 0.6462,
+        "f1": 0.4022,
+        "f2": 0.52,
+        "confusion_matrix": [
+          [
+            47576,
+            611
+          ],
+          [
+            138,
+            252
+          ]
+        ]
+      },
+      "delta_vs_v1": {
+        "val_prauc": 0.0,
+        "val_f2": 0.0,
+        "test_prauc": 0.0,
+        "test_f2": 0.0
+      },
+      "verdict": "NO IMPROVEMENT"
+    },
+    "temporal_weighted": {
+      "threshold": 0.1105,
+      "val": {
+        "pr_auc": 0.3474,
+        "precision": 0.2429,
+        "recall": 0.7945,
+        "f1": 0.3721,
+        "f2": 0.5464,
+        "confusion_matrix": [
+          [
+            58519,
+            1362
+          ],
+          [
+            113,
+            437
+          ]
+        ]
+      },
+      "test": {
+        "pr_auc": 0.3428,
+        "precision": 0.2565,
+        "recall": 0.6821,
+        "f1": 0.3728,
+        "f2": 0.5121,
+        "confusion_matrix": [
+          [
+            47416,
+            771
+          ],
+          [
+            124,
+            266
+          ]
+        ]
+      },
+      "delta_vs_v1": {
+        "val_prauc": -0.0005,
+        "val_f2": 0.0004,
+        "test_prauc": -0.0076,
+        "test_f2": -0.0079
+      },
+      "verdict": "NO IMPROVEMENT"
+    }
+  },
+  "verdict": "NO IMPROVEMENT"
+}
