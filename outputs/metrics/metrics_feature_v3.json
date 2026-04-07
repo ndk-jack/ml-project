@@ -1,0 +1,146 @@
+{
+  "split": {
+    "train": "<=2018",
+    "val": "2019-2022",
+    "test": "2023-2025"
+  },
+  "best_setup": "engineered",
+  "best_threshold": 0.1211,
+  "v1_reference": {
+    "val_prauc": 0.3479,
+    "val_f2": 0.546,
+    "test_prauc": 0.3504,
+    "test_f2": 0.52
+  },
+  "results": {
+    "baseline_v1": {
+      "features": {
+        "numeric": [
+          "Latitude",
+          "Longitude",
+          "Depth",
+          "Azimuthal Gap",
+          "Horizontal Distance",
+          "Root Mean Square",
+          "Horizontal Error",
+          "depthError",
+          "Month"
+        ],
+        "categorical": [
+          "Magnitude Type"
+        ],
+        "total": 10
+      },
+      "threshold": 0.1105,
+      "val": {
+        "pr_auc": 0.336,
+        "precision": 0.2335,
+        "recall": 0.7673,
+        "f1": 0.3581,
+        "f2": 0.5266,
+        "confusion_matrix": [
+          [
+            58498,
+            1385
+          ],
+          [
+            128,
+            422
+          ]
+        ]
+      },
+      "test": {
+        "pr_auc": 0.3232,
+        "precision": 0.2524,
+        "recall": 0.6718,
+        "f1": 0.3669,
+        "f2": 0.5042,
+        "confusion_matrix": [
+          [
+            47411,
+            776
+          ],
+          [
+            128,
+            262
+          ]
+        ]
+      },
+      "delta_vs_v1": {
+        "val_prauc": -0.0119,
+        "val_f2": -0.0194,
+        "test_prauc": -0.0272,
+        "test_f2": -0.0158
+      }
+    },
+    "engineered": {
+      "features": {
+        "numeric": [
+          "Latitude",
+          "Longitude",
+          "Depth",
+          "Azimuthal Gap",
+          "Horizontal Distance",
+          "Root Mean Square",
+          "Horizontal Error",
+          "depthError",
+          "Month",
+          "dist_fault_km",
+          "IsCoastal",
+          "log_depth",
+          "missing_azimuthal_gap",
+          "missing_horizontal_distance",
+          "missing_horizontal_error",
+          "missing_deptherror"
+        ],
+        "categorical": [
+          "Magnitude Type",
+          "depth_cat",
+          "season"
+        ],
+        "total": 19
+      },
+      "threshold": 0.1211,
+      "val": {
+        "pr_auc": 0.3201,
+        "precision": 0.2539,
+        "recall": 0.7455,
+        "f1": 0.3788,
+        "f2": 0.5374,
+        "confusion_matrix": [
+          [
+            58678,
+            1205
+          ],
+          [
+            140,
+            410
+          ]
+        ]
+      },
+      "test": {
+        "pr_auc": 0.3247,
+        "precision": 0.2825,
+        "recall": 0.6128,
+        "f1": 0.3867,
+        "f2": 0.4967,
+        "confusion_matrix": [
+          [
+            47580,
+            607
+          ],
+          [
+            151,
+            239
+          ]
+        ]
+      },
+      "delta_vs_v1": {
+        "val_prauc": -0.0278,
+        "val_f2": -0.0086,
+        "test_prauc": -0.0257,
+        "test_f2": -0.0233
+      }
+    }
+  }
+}
