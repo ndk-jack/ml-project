@@ -48,3 +48,4 @@ CLAUDE.local.md
 outputs/models/
 __pycache__/
 .DS_Store
+outputs/metrics/*.json
