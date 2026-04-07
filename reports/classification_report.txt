@@ -1,0 +1,36 @@
+Target        : label_7d
+Test from year: 2010
+ROC-AUC       : 0.8562
+Avg Precision : 0.7750
+
+              precision    recall  f1-score   support
+
+    No event       0.89      0.80      0.84    174912
+   Event ≥M5       0.59      0.74      0.65     67814
+
+    accuracy                           0.78    242726
+   macro avg       0.74      0.77      0.75    242726
+weighted avg       0.80      0.78      0.79    242726
+
+
+Top 20 features:
+moment_7d       0.180763
+energy_7d       0.138285
+rate_7d         0.108893
+moment_30d      0.108659
+count_7d        0.075201
+moment_90d      0.058413
+energy_90d      0.052020
+rate_1d         0.043162
+energy_30d      0.039014
+b_value_7d      0.029456
+count_1d        0.027337
+moment_1d       0.009947
+magnitude       0.008500
+energy_1d       0.007872
+count_90d       0.007298
+b_value_90d     0.006877
+mag_mean_90d    0.006492
+rate_90d        0.006041
+count_30d       0.005380
+rate_30d        0.004629

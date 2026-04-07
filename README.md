@@ -1,6 +1,21 @@
-# Earthquake ML Project
+# Earthquake Risk Forecasting Project
 
-Predicting earthquake magnitude and danger level from the USGS global seismic catalog (1900–2026).
+This project aims to estimate future earthquake risk from historical seismic observations.  
+The goal is not to predict the exact time, location, and magnitude of a single earthquake, but to estimate the probability of at least one event above a chosen magnitude threshold within a spatial radius and a future time window.
+
+## Problem Statement
+
+At time `t`, for an anchor point `P`, estimate the probability of at least one earthquake with magnitude ≥ `M` occurring within radius `R` over horizon `H`.
+
+## Project Scope
+
+The project is framed as a spatio-temporal forecasting problem.
+
+- Study area: local or regional
+- Spatial unit: regular grid of anchor points
+- Spatial reference: local projection in kilometers
+- Prediction horizons: `7d`, `30d`, `365d`
+- Initial modeling focus: `30d`
 
 ## Dataset
 
@@ -8,7 +23,7 @@ Predicting earthquake magnitude and danger level from the USGS global seismic ca
 **Size**: 539 030 earthquakes after cleaning (magnitude ≥ 4.0, 1900–2026)  
 **Raw data**: not versioned — regenerate with the scripts below.
 
-## Features
+## ## Current Event-Level Features
 
 | Feature | Description |
 |---------|-------------|
@@ -22,7 +37,7 @@ Predicting earthquake magnitude and danger level from the USGS global seismic ca
 
 `dist_fault_km` is the most informative engineered feature: earthquakes near active faults tend to cluster in distinct magnitude regimes.
 
-## Results
+## Current Baseline Status
 
 ### Regression — predicting Magnitude
 
@@ -40,7 +55,8 @@ Predicting earthquake magnitude and danger level from the USGS global seismic ca
 
 Class imbalance: 97.4% non-dangerous / 2.6% dangerous. Threshold lowered to 0.25 (vs default 0.50) to improve recall on the minority class.
 
-## Scientific Conclusion
+The sections below describe the initial event-level baseline and do not yet reflect the anchor-grid forecasting setup.
+## Notes on Initial Event-Level Modeling
 
 **R² plateaus at ~0.37** regardless of the model. This is expected: earthquake magnitude is governed by fault rupture mechanics, accumulated tectonic stress, and subsurface geology — variables absent from the public USGS catalog. Location, depth, and time are weak proxies. This project demonstrates that a ceiling exists with observational catalog data alone, and that more informative features (seismic moment tensors, GPS crustal velocities, fault locking rates) would be required to push further.
 

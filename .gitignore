@@ -44,3 +44,8 @@ CLAUDE.local.md
 .vscode/
 .idea/
 *.swp
+
+outputs/models/
+__pycache__/
+.DS_Store
+outputs/metrics/*.json
