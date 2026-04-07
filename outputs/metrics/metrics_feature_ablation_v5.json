@@ -1,0 +1,274 @@
+{
+  "split": {
+    "train": "<=2018",
+    "val": "2019-2022",
+    "test": "2023-2025"
+  },
+  "classifier": {
+    "n_estimators": 200,
+    "class_weight": "balanced_subsample",
+    "random_state": 42
+  },
+  "merge": {
+    "matched": 539030,
+    "unmatched": 792,
+    "match_pct": 99.8533
+  },
+  "best_setup": "baseline_v1",
+  "best_threshold": 0.1259,
+  "v1_reference": {
+    "val_prauc": 0.3479,
+    "val_f2": 0.546,
+    "test_prauc": 0.3504,
+    "test_f2": 0.52
+  },
+  "results": {
+    "baseline_v1": {
+      "n_features": 10,
+      "added": [],
+      "threshold": 0.1259,
+      "val": {
+        "pr_auc": 0.3479,
+        "precision": 0.2602,
+        "recall": 0.7527,
+        "f1": 0.3867,
+        "f2": 0.546,
+        "confusion_matrix": [
+          [
+            58704,
+            1177
+          ],
+          [
+            136,
+            414
+          ]
+        ]
+      },
+      "test": {
+        "pr_auc": 0.3504,
+        "precision": 0.292,
+        "recall": 0.6462,
+        "f1": 0.4022,
+        "f2": 0.52,
+        "confusion_matrix": [
+          [
+            47576,
+            611
+          ],
+          [
+            138,
+            252
+          ]
+        ]
+      },
+      "delta_vs_v1": {
+        "val_prauc": 0.0,
+        "val_f2": 0.0,
+        "test_prauc": 0.0,
+        "test_f2": 0.0
+      },
+      "verdict": "NO IMPROVEMENT"
+    },
+    "+dist_fault_km": {
+      "n_features": 11,
+      "added": [
+        "dist_fault_km"
+      ],
+      "threshold": 0.1259,
+      "val": {
+        "pr_auc": 0.3505,
+        "precision": 0.2518,
+        "recall": 0.7491,
+        "f1": 0.3769,
+        "f2": 0.537,
+        "confusion_matrix": [
+          [
+            58657,
+            1224
+          ],
+          [
+            138,
+            412
+          ]
+        ]
+      },
+      "test": {
+        "pr_auc": 0.3385,
+        "precision": 0.281,
+        "recall": 0.6564,
+        "f1": 0.3935,
+        "f2": 0.518,
+        "confusion_matrix": [
+          [
+            47532,
+            655
+          ],
+          [
+            134,
+            256
+          ]
+        ]
+      },
+      "delta_vs_v1": {
+        "val_prauc": 0.0026,
+        "val_f2": -0.009,
+        "test_prauc": -0.0119,
+        "test_f2": -0.002
+      },
+      "verdict": "MIXED"
+    },
+    "+IsCoastal": {
+      "n_features": 11,
+      "added": [
+        "IsCoastal"
+      ],
+      "threshold": 0.1105,
+      "val": {
+        "pr_auc": 0.3405,
+        "precision": 0.2277,
+        "recall": 0.7782,
+        "f1": 0.3523,
+        "f2": 0.5245,
+        "confusion_matrix": [
+          [
+            58429,
+            1452
+          ],
+          [
+            122,
+            428
+          ]
+        ]
+      },
+      "test": {
+        "pr_auc": 0.3374,
+        "precision": 0.257,
+        "recall": 0.7026,
+        "f1": 0.3764,
+        "f2": 0.5217,
+        "confusion_matrix": [
+          [
+            47395,
+            792
+          ],
+          [
+            116,
+            274
+          ]
+        ]
+      },
+      "delta_vs_v1": {
+        "val_prauc": -0.0074,
+        "val_f2": -0.0215,
+        "test_prauc": -0.013,
+        "test_f2": 0.0017
+      },
+      "verdict": "NO IMPROVEMENT"
+    },
+    "+dist_fault_km+IsCoastal": {
+      "n_features": 12,
+      "added": [
+        "dist_fault_km",
+        "IsCoastal"
+      ],
+      "threshold": 0.1353,
+      "val": {
+        "pr_auc": 0.349,
+        "precision": 0.2633,
+        "recall": 0.7291,
+        "f1": 0.3869,
+        "f2": 0.5385,
+        "confusion_matrix": [
+          [
+            58759,
+            1122
+          ],
+          [
+            149,
+            401
+          ]
+        ]
+      },
+      "test": {
+        "pr_auc": 0.3314,
+        "precision": 0.2958,
+        "recall": 0.6256,
+        "f1": 0.4016,
+        "f2": 0.5115,
+        "confusion_matrix": [
+          [
+            47606,
+            581
+          ],
+          [
+            146,
+            244
+          ]
+        ]
+      },
+      "delta_vs_v1": {
+        "val_prauc": 0.0011,
+        "val_f2": -0.0075,
+        "test_prauc": -0.019,
+        "test_f2": -0.0085
+      },
+      "verdict": "MIXED"
+    },
+    "+full_v3_engineered": {
+      "n_features": 18,
+      "added": [
+        "dist_fault_km",
+        "IsCoastal",
+        "log_depth",
+        "missing_azimuthal_gap",
+        "missing_horizontal_distance",
+        "missing_horizontal_error",
+        "missing_deptherror",
+        "Depth_category"
+      ],
+      "threshold": 0.1105,
+      "val": {
+        "pr_auc": 0.349,
+        "precision": 0.2501,
+        "recall": 0.7673,
+        "f1": 0.3773,
+        "f2": 0.5428,
+        "confusion_matrix": [
+          [
+            58616,
+            1265
+          ],
+          [
+            128,
+            422
+          ]
+        ]
+      },
+      "test": {
+        "pr_auc": 0.3487,
+        "precision": 0.2889,
+        "recall": 0.6897,
+        "f1": 0.4073,
+        "f2": 0.5399,
+        "confusion_matrix": [
+          [
+            47525,
+            662
+          ],
+          [
+            121,
+            269
+          ]
+        ]
+      },
+      "delta_vs_v1": {
+        "val_prauc": 0.0011,
+        "val_f2": -0.0032,
+        "test_prauc": -0.0017,
+        "test_f2": 0.0199
+      },
+      "verdict": "MIXED"
+    }
+  },
+  "ablation_verdict": "weak_signal \u2014 mixed results in: ['+dist_fault_km', '+dist_fault_km+IsCoastal', '+full_v3_engineered']"
+}
