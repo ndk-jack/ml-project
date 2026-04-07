@@ -5,6 +5,31 @@ import matplotlib.patches as mpatches
 import matplotlib.gridspec as gridspec
 import pandas as pd
 import numpy as np
+import geopandas as gpd
+
+COUNTRIES_URL = (
+    "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
+    "master/geojson/ne_110m_admin_0_countries.geojson"
+)
+
+# Dictionnaire de noms pour le top 15 zones (lat_bin, lon_bin) → nom
+ZONE_NAMES = {
+    ( 0,  125): "Sulawesi, Indonésie",
+    (35,  140): "Honshu, Japon",
+    (-25, -180): "Tonga",
+    (-20, -180): "Fidji-Tonga",
+    (-10,  150): "Papouasie-Nvl-Guinée",
+    (  5,  125): "Mindanao, Philippines",
+    ( 35,   70): "Hindu Kush, Afghanistan",
+    (-25,  -70): "Atacama, Chili",
+    (-35, -180): "Kermadec, NZ",
+    (-15,  165): "Vanuatu",
+    (-10,  125): "Timor, Indonésie",
+    (-20, -175): "Tonga Sud",
+    (-35,  -75): "Biobío, Chili",
+    ( 20,  120): "Taïwan",
+    (-20,  165): "Nouvelle-Calédonie",
+}
 
 df = pd.read_csv("data/clean_updated.csv")
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
@@ -19,13 +44,17 @@ print(f"Dataset chargé : {len(df):,} séismes")
 # ── 1. Carte mondiale ─────────────────────────────────────────────────────────
 
 print("Génération world_map.png...")
+print("  Chargement des frontières pays...")
+world = gpd.read_file(COUNTRIES_URL)
+
 fig, ax = plt.subplots(figsize=(18, 9), facecolor="#1a1a2e")
 ax.set_facecolor("#16213e")
-
-# Contours continents simplifiés (boîtes des océans/terres via fond coloré)
 ax.set_xlim(-180, 180)
 ax.set_ylim(-90, 90)
 ax.set_aspect("equal")
+
+# Frontières des pays
+world.boundary.plot(ax=ax, linewidth=0.3, color="white", alpha=0.6)
 
 # Grille subtile
 ax.grid(color="#2a2a4a", linewidth=0.4, linestyle="--", alpha=0.5)
@@ -47,17 +76,28 @@ ax.scatter(dangerous["Longitude"], dangerous["Latitude"],
            s=size_dan, c="#ff4444", alpha=0.6, linewidths=0, rasterized=True,
            label="Dangereux (≥ 6.0)")
 
+# Noms des continents
+continent_labels = [
+    ("Amérique\ndu Nord",  -100,  45),
+    ("Amérique\ndu Sud",    -60, -15),
+    ("Europe",               15,  52),
+    ("Afrique",              20,   5),
+    ("Asie",                 90,  45),
+    ("Océanie",             135, -25),
+    ("Antarctique",           0, -80),
+]
+for name, lon, lat in continent_labels:
+    ax.text(lon, lat, name, color="white", fontsize=7.5, alpha=0.65,
+            ha="center", va="center", fontweight="bold",
+            bbox=dict(boxstyle="round,pad=0.2", facecolor="#1a1a2e", alpha=0.3, linewidth=0))
+
 ax.set_title("540 000 séismes mondiaux 1900–2026", color="white", fontsize=16, pad=12)
 ax.set_xlabel("Longitude", color="#aaaacc", fontsize=9)
 ax.set_ylabel("Latitude", color="#aaaacc", fontsize=9)
 ax.spines[:].set_color("#2a2a4a")
 
-legend = ax.legend(loc="lower left", fontsize=9, framealpha=0.4,
-                   labelcolor="white", facecolor="#1a1a2e", edgecolor="#444466")
-# Légende taille
-for mag, label in [(5.0, "M 5.0"), (7.0, "M 7.0"), (9.0, "M 9.0")]:
-    ax.scatter([], [], s=(mag - 4) * 5, c="white", alpha=0.6,
-               label=label, linewidths=0)
+for mag, lbl in [(5.0, "M 5.0"), (7.0, "M 7.0"), (9.0, "M 9.0")]:
+    ax.scatter([], [], s=(mag - 4) * 5, c="white", alpha=0.6, label=lbl, linewidths=0)
 ax.legend(loc="lower left", fontsize=8, framealpha=0.4,
           labelcolor="white", facecolor="#1a1a2e", edgecolor="#444466",
           title="Magnitude", title_fontsize=8)
@@ -129,6 +169,9 @@ zone_counts = (df.groupby(["lat_bin", "lon_bin"])
                  .head(15))
 
 def zone_label(row):
+    key = (int(row.lat_bin), int(row.lon_bin))
+    if key in ZONE_NAMES:
+        return ZONE_NAMES[key]
     lat = f"{abs(int(row.lat_bin))}°{'N' if row.lat_bin >= 0 else 'S'}"
     lon = f"{abs(int(row.lon_bin))}°{'E' if row.lon_bin >= 0 else 'W'}"
     return f"{lat} / {lon}"
