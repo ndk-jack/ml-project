@@ -1,0 +1,83 @@
+{
+  "split": {
+    "train": "<=2018",
+    "val": "2019-2022",
+    "test": "2023-2025"
+  },
+  "features": [
+    "Latitude",
+    "Longitude",
+    "Depth",
+    "Azimuthal Gap",
+    "Horizontal Distance",
+    "Root Mean Square",
+    "Horizontal Error",
+    "depthError",
+    "Month",
+    "Magnitude Type"
+  ],
+  "search": {
+    "model": "RandomForestClassifier",
+    "n_iter": 5,
+    "cv": 2,
+    "subsample_rows": 85458,
+    "best_cv_prauc": 0.4617,
+    "best_params": {
+      "max_depth": 30,
+      "max_features": 0.5,
+      "min_samples_leaf": 8,
+      "n_estimators": 288
+    }
+  },
+  "calibration": {
+    "methods_compared": {
+      "sigmoid": {
+        "val_prauc": 0.3374
+      },
+      "isotonic": {
+        "val_prauc": 0.3243
+      }
+    },
+    "best_method": "sigmoid"
+  },
+  "threshold": 0.0301,
+  "val": {
+    "pr_auc": 0.3374,
+    "precision": 0.2398,
+    "recall": 0.7727,
+    "f1": 0.3661,
+    "f2": 0.535,
+    "confusion_matrix": [
+      [
+        58534,
+        1347
+      ],
+      [
+        125,
+        425
+      ]
+    ]
+  },
+  "test": {
+    "pr_auc": 0.3551,
+    "precision": 0.2666,
+    "recall": 0.6795,
+    "f1": 0.3829,
+    "f2": 0.5188,
+    "confusion_matrix": [
+      [
+        47458,
+        729
+      ],
+      [
+        125,
+        265
+      ]
+    ]
+  },
+  "delta_vs_v1": {
+    "val_f2": -0.011,
+    "val_prauc": -0.0106,
+    "test_f2": -0.0012
+  }
+}
