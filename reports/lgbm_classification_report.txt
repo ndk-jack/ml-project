@@ -1,0 +1,37 @@
+Model         : LightGBM
+Target        : label_7d
+Test from year: 2010
+ROC-AUC       : 0.8566  (XGBoost baseline: 0.8562)
+Avg Precision : 0.7762  (XGBoost baseline: 0.7750)
+
+              precision    recall  f1-score   support
+
+    No event       0.89      0.80      0.84    174912
+   Event ≥M5       0.59      0.73      0.66     67814
+
+    accuracy                           0.78    242726
+   macro avg       0.74      0.77      0.75    242726
+weighted avg       0.80      0.78      0.79    242726
+
+
+Top 20 features:
+magnitude                    412
+mag_mean_90d                 301
+count_90d                    258
+dist_to_plate_boundary_km    232
+energy_90d                   191
+depth_mean_90d               188
+depth_std_90d                187
+count_30d                    145
+elapsed_since_last_s         141
+count_7d                     126
+depth                        114
+mag_std_90d                  113
+b_value_90d                  111
+energy_1d                    105
+count_1d                      95
+energy_7d                     92
+energy_30d                    89
+depth_mean_30d                87
+mag_mean_30d                  82
+depth_mean_7d                 71
