@@ -1,6 +1,21 @@
-# Earthquake ML Project
+# Earthquake Risk Forecasting Project
 
-Predicting earthquake magnitude and danger level from the USGS global seismic catalog (1900–2026).
+This project aims to estimate future earthquake risk from historical seismic observations.  
+The goal is not to predict the exact time, location, and magnitude of a single earthquake, but to estimate the probability of at least one event above a chosen magnitude threshold within a spatial radius and a future time window.
+
+## Problem Statement
+
+At time `t`, for an anchor point `P`, estimate the probability of at least one earthquake with magnitude ≥ `M` occurring within radius `R` over horizon `H`.
+
+## Project Scope
+
+The project is framed as a spatio-temporal forecasting problem.
+
+- Study area: local or regional
+- Spatial unit: regular grid of anchor points
+- Spatial reference: local projection in kilometers
+- Prediction horizons: `7d`, `30d`, `365d`
+- Initial modeling focus: `30d`
 
 ## Dataset
 
