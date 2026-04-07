@@ -1,12 +1,21 @@
 """
 features.py — Feature engineering for earthquake sequence prediction.
 
-Generates ~46 features per event:
-  - Reference event features  (magnitude, depth, gap, rms, …)
-  - Temporal window features  (count, mag stats, energy, b-value, …)
-    over 4 time windows (1d, 7d, 30d, 90d) within a 200 km radius
-  - Elapsed time since the previous event
-  - Distance to the nearest tectonic plate boundary
+Two catalogs are loaded:
+  - data/database_updated.csv        → target events (output rows)
+  - data/raw/catalog_m2_m4.csv       → contextual M≥2 neighbours (post-1999)
+
+Feature sets produced per target event:
+  A) Reference features        (magnitude, depth, gap, rms, …)
+  B) Coherent window features  — neighbours filtered to M≥4.0 (combined catalog)
+       count_Nd, rate_Nd, mag_max_Nd, mag_mean_Nd, mag_std_Nd,
+       energy_Nd, moment_Nd, b_value_Nd, depth_mean_Nd, depth_std_Nd
+       elapsed_since_last_s
+       Windows: 1d, 7d, 30d, 90d
+  C) M2-enriched window features — neighbours from catalog_m2_m4 only
+       count_Nd_m2, b_value_Nd_m2, energy_Nd_m2
+       Windows: 7d, 30d, 90d  (NaN for target events before 2000-01-01)
+  D) Distance to nearest tectonic plate boundary
 
 Usage : python3 src/features.py
 Output: data/features/features.csv
@@ -112,37 +121,41 @@ def plate_boundary_distances(df: pd.DataFrame, geojson_path: Path) -> pd.Series:
 
 # ── Window feature computation ────────────────────────────────────────────────
 
-def compute_all_window_features(
-    df: pd.DataFrame,
-    all_neighbors: list,          # pre-computed by BallTree.query_radius
+def compute_coherent_window_features(
+    df_all: pd.DataFrame,
+    target_indices: np.ndarray,
+    all_neighbors: list,
     windows_days: list,
 ) -> pd.DataFrame:
     """
-    For every event i, look at its spatial neighbours (pre-computed) that
-    occurred BEFORE event i and within each time window, and compute stats.
+    Coherent windows (feature set B).
+
+    Neighbours are filtered to M≥4.0 events from the combined catalog.
+    Feature names are unchanged: count_Nd, rate_Nd, mag_max_Nd, …
     """
-    times    = df["datetime"].values          # numpy datetime64
-    mags     = df["magnitude"].values
-    depths   = df["depth"].values
+    times   = df_all["datetime"].values
+    mags    = df_all["magnitude"].values
+    depths  = df_all["depth"].values
+    m4_mask = mags >= 4.0                    # boolean index over df_all rows
 
-    rows = []
-    n_events = len(df)
+    rows     = []
+    n_target = len(target_indices)
 
-    for i in range(n_events):
-        if i % 20_000 == 0:
-            print(f"    {i:>7,} / {n_events:,}  ({100*i/n_events:.0f}%)")
+    for k, i in enumerate(target_indices):
+        if k % 20_000 == 0:
+            print(f"    {k:>7,} / {n_target:,}  ({100*k/n_target:.0f}%)")
 
         t_ref   = times[i]
         row     = {}
 
-        # Neighbours (spatial) — exclude self
-        nbr_idx = all_neighbors[i]
+        # Spatial neighbours → keep only M≥4.0, exclude self
+        nbr_all = all_neighbors[k]
+        nbr_idx = nbr_all[m4_mask[nbr_all]]
         nbr_idx = nbr_idx[nbr_idx != i]
 
-        # ── Elapsed since last event (any magnitude) ──────────────────────
+        # ── Elapsed since last M≥4.0 event ───────────────────────────────
         if len(nbr_idx) > 0:
-            past_mask  = times[nbr_idx] < t_ref
-            past_idx   = nbr_idx[past_mask]
+            past_idx = nbr_idx[times[nbr_idx] < t_ref]
             if len(past_idx) > 0:
                 last_t = times[past_idx].max()
                 row["elapsed_since_last_s"] = float(
@@ -164,98 +177,221 @@ def compute_all_window_features(
                 win_idx = np.array([], dtype=int)
 
             n = len(win_idx)
-            row[f"count_{w}d"]  = n
-            row[f"rate_{w}d"]   = n / w          # events per day
+            row[f"count_{w}d"] = n
+            row[f"rate_{w}d"]  = n / w
 
             if n > 0:
                 m = mags[win_idx]
                 d = depths[win_idx]
                 d_valid = d[~np.isnan(d)]
 
-                row[f"mag_max_{w}d"]   = float(m.max())
-                row[f"mag_mean_{w}d"]  = float(m.mean())
-                row[f"mag_std_{w}d"]   = float(m.std()) if n > 1 else 0.0
-                row[f"energy_{w}d"]    = seismic_energy(m)
-                row[f"moment_{w}d"]    = seismic_moment(m)
-                row[f"b_value_{w}d"]   = b_value_mle(m)
-                row[f"depth_mean_{w}d"]= float(d_valid.mean()) if len(d_valid) > 0 else np.nan
-                row[f"depth_std_{w}d"] = float(d_valid.std())  if len(d_valid) > 1 else 0.0
+                row[f"mag_max_{w}d"]    = float(m.max())
+                row[f"mag_mean_{w}d"]   = float(m.mean())
+                row[f"mag_std_{w}d"]    = float(m.std()) if n > 1 else 0.0
+                row[f"energy_{w}d"]     = seismic_energy(m)
+                row[f"moment_{w}d"]     = seismic_moment(m)
+                row[f"b_value_{w}d"]    = b_value_mle(m)
+                row[f"depth_mean_{w}d"] = float(d_valid.mean()) if len(d_valid) > 0 else np.nan
+                row[f"depth_std_{w}d"]  = float(d_valid.std())  if len(d_valid) > 1 else 0.0
             else:
                 for feat in ["mag_max", "mag_mean", "mag_std",
                              "b_value", "depth_mean", "depth_std"]:
                     row[f"{feat}_{w}d"] = np.nan
-                row[f"energy_{w}d"]  = 0.0
-                row[f"moment_{w}d"]  = 0.0
+                row[f"energy_{w}d"] = 0.0
+                row[f"moment_{w}d"] = 0.0
 
         rows.append(row)
 
-    return pd.DataFrame(rows, index=df.index)
+    return pd.DataFrame(rows, index=df_all.index[target_indices])
+
+
+def compute_m2_window_features(
+    df_all: pd.DataFrame,
+    target_indices: np.ndarray,
+    all_neighbors: list,
+) -> pd.DataFrame:
+    """
+    M2-enriched windows (feature set C).
+
+    Neighbours are filtered to rows sourced from catalog_m2_m4 (is_m2_ctx=True).
+    Only windows 7d, 30d, 90d are computed.
+    Features produced: count_Nd_m2, b_value_Nd_m2, energy_Nd_m2.
+    All features are NaN for target events whose datetime < 2000-01-01,
+    because catalog_m2_m4 only covers 2000+.
+    """
+    WINDOWS    = [7, 30, 90]
+    CUTOFF     = np.datetime64("2000-01-01")
+
+    times      = df_all["datetime"].values
+    mags       = df_all["magnitude"].values
+    m2_mask    = df_all["is_m2_ctx"].values       # boolean index over df_all rows
+
+    rows     = []
+    n_target = len(target_indices)
+
+    for k, i in enumerate(target_indices):
+        t_ref = times[i]
+        row   = {}
+
+        # Target events before the catalog coverage → all NaN
+        if t_ref < CUTOFF:
+            for w in WINDOWS:
+                row[f"count_{w}d_m2"]   = np.nan
+                row[f"b_value_{w}d_m2"] = np.nan
+                row[f"energy_{w}d_m2"]  = np.nan
+            rows.append(row)
+            continue
+
+        # Spatial neighbours → keep only catalog_m2_m4 rows, exclude self
+        nbr_all = all_neighbors[k]
+        nbr_idx = nbr_all[m2_mask[nbr_all]]
+        nbr_idx = nbr_idx[nbr_idx != i]
+
+        for w in WINDOWS:
+            horizon = np.timedelta64(w, "D")
+            if len(nbr_idx) > 0:
+                win_mask = (times[nbr_idx] < t_ref) & \
+                           (times[nbr_idx] >= t_ref - horizon)
+                win_idx  = nbr_idx[win_mask]
+            else:
+                win_idx = np.array([], dtype=int)
+
+            n = len(win_idx)
+            row[f"count_{w}d_m2"] = n
+
+            if n > 0:
+                m = mags[win_idx]
+                row[f"b_value_{w}d_m2"] = b_value_mle(m)
+                row[f"energy_{w}d_m2"]  = seismic_energy(m)
+            else:
+                row[f"b_value_{w}d_m2"] = np.nan
+                row[f"energy_{w}d_m2"]  = 0.0
+
+        rows.append(row)
+
+    return pd.DataFrame(rows, index=df_all.index[target_indices])
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
     catalog_path    = Path("data/database_updated.csv")
+    context_path    = Path("data/raw/catalog_m2_m4.csv")
     boundaries_path = Path("data/external/PB2002_boundaries.json")
     output_dir      = Path("data/features")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Load catalog
-    print("── 1. Loading catalog ──────────────────────────────────────────")
-    df = load_catalog(catalog_path)
-    print(f"   {len(df):,} events  |  "
-          f"{df['datetime'].min().date()} → {df['datetime'].max().date()}")
+    # 1. Load catalogs
+    print("── 1. Loading catalogs ─────────────────────────────────────────")
+    df_main = load_catalog(catalog_path)
+    df_main["is_target"] = True
+    print(f"   Target  (database_updated): {len(df_main):,} events  |  "
+          f"{df_main['datetime'].min().date()} → {df_main['datetime'].max().date()}")
 
-    # 2. Reference-event features
+    df_ctx = load_catalog(context_path)
+    df_ctx["is_target"] = False
+    print(f"   Context (catalog_m2_m4):    {len(df_ctx):,} events  |  "
+          f"{df_ctx['datetime'].min().date()} → {df_ctx['datetime'].max().date()}")
+
+    # Merge: target events take precedence when deduplicating on (datetime, lat, lon)
+    # is_m2_ctx marks rows that come from catalog_m2_m4 (even if also in target)
+    df_ctx["is_m2_ctx"] = True
+    df_main["is_m2_ctx"] = False
+
+    df_all = pd.concat([df_main, df_ctx], ignore_index=True)
+    before = len(df_all)
+    df_all = df_all.sort_values("datetime", kind="stable")
+    # Drop exact duplicates: target version (is_target=True) comes first → kept
+    df_all = df_all.drop_duplicates(
+        subset=["datetime", "latitude", "longitude"], keep="first"
+    ).reset_index(drop=True)
+    print(f"\n   Combined: {len(df_all):,} events after dedup "
+          f"(removed {before - len(df_all):,} duplicates)")
+    n_target_in_all = df_all["is_target"].sum()
+    n_m2_in_all     = df_all["is_m2_ctx"].sum()
+    print(f"   Target events  (database_updated): {n_target_in_all:,}")
+    print(f"   M2-ctx events  (catalog_m2_m4):    {n_m2_in_all:,}")
+
+    # Indices into df_all of target events (output rows)
+    target_indices = np.where(df_all["is_target"].values)[0]
+
+    # 2. Reference-event features (target events only)
     print("\n── 2. Reference-event features ─────────────────────────────────")
+    df_target = df_all.iloc[target_indices]
+
     mag_type_map = {t: i for i, t in
-                    enumerate(df["mag_type"].fillna("unknown").unique())}
-    df["mag_type_enc"] = df["mag_type"].fillna("unknown").map(mag_type_map)
+                    enumerate(df_target["mag_type"].fillna("unknown").unique())}
+    # Encode on df_all so index alignment is preserved
+    df_all["mag_type_enc"] = df_all["mag_type"].fillna("unknown").map(mag_type_map)
 
     ref_cols = ["latitude", "longitude", "depth", "magnitude",
                 "mag_type_enc", "gap", "dmin", "rms",
                 "h_error", "depth_error", "mag_error"]
-    ref_cols = [c for c in ref_cols if c in df.columns]
-    ref_features = df[ref_cols].copy()
+    ref_cols = [c for c in ref_cols if c in df_all.columns]
+    ref_features = df_all.loc[df_all.index[target_indices], ref_cols].copy()
     print(f"   {len(ref_cols)} reference features: {ref_cols}")
 
-    # 3. Build BallTree (spatial index) — computed once
-    print("\n── 3. Building BallTree spatial index ──────────────────────────")
-    lat_rad   = np.radians(df["latitude"].values)
-    lon_rad   = np.radians(df["longitude"].values)
-    coords_r  = np.column_stack([lat_rad, lon_rad])
-    tree      = BallTree(coords_r, metric="haversine")
+    # 3. Build BallTree on the COMBINED catalog (spatial index)
+    print("\n── 3. Building BallTree spatial index (combined catalog) ────────")
+    lat_rad_all  = np.radians(df_all["latitude"].values)
+    lon_rad_all  = np.radians(df_all["longitude"].values)
+    coords_all   = np.column_stack([lat_rad_all, lon_rad_all])
+    tree         = BallTree(coords_all, metric="haversine")
 
-    # Pre-compute ALL spatial neighbours at once (much faster than per-event)
-    print(f"   Querying {len(df):,} events within {RADIUS_KM} km …")
-    radius_rad   = RADIUS_KM / EARTH_R_KM
-    all_neighbors = tree.query_radius(coords_r, r=radius_rad)
-    print(f"   Done.  Avg neighbours per event: "
+    # Query neighbours for TARGET event positions only
+    coords_target = coords_all[target_indices]
+    radius_rad    = RADIUS_KM / EARTH_R_KM
+    print(f"   Querying {len(target_indices):,} target positions "
+          f"within {RADIUS_KM} km of {len(df_all):,} combined events …")
+    all_neighbors = tree.query_radius(coords_target, r=radius_rad)
+    print(f"   Done.  Avg neighbours per target event: "
           f"{np.mean([len(n) for n in all_neighbors]):.1f}")
 
-    # 4. Window features
-    print("\n── 4. Temporal window features ─────────────────────────────────")
+    # 4a. Coherent window features — M≥4.0 events only
+    print("\n── 4a. Coherent window features (M≥4.0) ────────────────────────")
     print(f"   Windows: {WINDOWS_DAYS} days  |  Radius: {RADIUS_KM} km")
-    window_df = compute_all_window_features(df, all_neighbors, WINDOWS_DAYS)
-    print(f"   Generated {window_df.shape[1]} window features.")
+    coherent_df = compute_coherent_window_features(
+        df_all, target_indices, all_neighbors, WINDOWS_DAYS
+    )
+    print(f"   Generated {coherent_df.shape[1]} coherent window features.")
 
-    # 5. Plate boundary distance
+    # 4b. M2-enriched window features — catalog_m2_m4 events only
+    print("\n── 4b. M2-enriched window features (catalog_m2_m4, post-1999) ──")
+    m2_df = compute_m2_window_features(df_all, target_indices, all_neighbors)
+    print(f"   Generated {m2_df.shape[1]} M2-enriched features.")
+    n_nan = m2_df["count_7d_m2"].isna().sum()
+    print(f"   NaN rows (pre-2000 target events): {n_nan:,}")
+
+    # 5. Plate boundary distance (target events only)
     print("\n── 5. Plate boundary distance ──────────────────────────────────")
+    target_df_for_dist = df_all.iloc[target_indices].reset_index(drop=True)
     if boundaries_path.exists():
-        plate_dist = plate_boundary_distances(df, boundaries_path)
+        plate_dist_vals = plate_boundary_distances(target_df_for_dist, boundaries_path)
+        plate_dist = pd.Series(
+            plate_dist_vals.values,
+            index=df_all.index[target_indices],
+            name="dist_to_plate_boundary_km",
+        )
     else:
         print(f"   WARNING: {boundaries_path} not found — feature set to NaN")
-        plate_dist = pd.Series(np.nan, index=df.index,
-                               name="dist_to_plate_boundary_km")
+        plate_dist = pd.Series(
+            np.nan,
+            index=df_all.index[target_indices],
+            name="dist_to_plate_boundary_km",
+        )
 
     # 6. Assemble
     print("\n── 6. Assembling feature matrix ────────────────────────────────")
-    features = pd.concat([ref_features, window_df, plate_dist], axis=1)
+    features = pd.concat([ref_features, coherent_df, m2_df, plate_dist], axis=1)
 
     # Keep datetime + coords for joining with labels.csv
-    features.insert(0, "datetime",      df["datetime"].dt.strftime("%Y-%m-%d %H:%M:%S"))
-    features.insert(1, "ref_lat",       df["latitude"])
-    features.insert(2, "ref_lon",       df["longitude"])
+    dt_vals  = df_all["datetime"].iloc[target_indices].dt.strftime("%Y-%m-%d %H:%M:%S")
+    lat_vals = df_all["latitude"].iloc[target_indices]
+    lon_vals = df_all["longitude"].iloc[target_indices]
+
+    features.insert(0, "datetime", dt_vals.values)
+    features.insert(1, "ref_lat",  lat_vals.values)
+    features.insert(2, "ref_lon",  lon_vals.values)
 
     # 7. Summary
     print(f"\n   Shape: {features.shape[0]:,} rows × {features.shape[1]} columns")

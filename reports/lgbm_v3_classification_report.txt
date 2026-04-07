@@ -1,33 +1,33 @@
-v2 ROC-AUC: 0.8568  →  v3 ROC-AUC: 0.8585  (▲0.0017)
+v2 ROC-AUC: 0.8560  →  v3 ROC-AUC: 0.8581  (▲0.0021)
 
               precision    recall  f1-score   support
 
-    No event       0.89      0.81      0.85    174912
+    No event       0.88      0.82      0.85    174912
    Event ≥M5       0.60      0.73      0.66     67814
 
     accuracy                           0.79    242726
    macro avg       0.74      0.77      0.75    242726
-weighted avg       0.81      0.79      0.79    242726
+weighted avg       0.81      0.79      0.80    242726
 
 
 Top 20:
-background_rate_yr           493
-mag_mean_90d                 356
-magnitude                    348
-dist_to_plate_boundary_km    250
-count_90d                    219
-elapsed_since_last_s         195
-energy_90d                   195
-count_7d                     170
-depth_std_90d                163
-mag_excess                   153
-wsm_dist_km                  153
-count_30d                    145
-depth                        137
-depth_mean_90d               134
-energy_1d                    129
-b_value_90d                  126
-count_1d                     116
-dist_to_nearest_fault_km     115
-shmax_sin                    114
-energy_30d                   114
+background_rate_yr           353
+mag_mean_90d                 258
+magnitude                    255
+dist_to_plate_boundary_km    140
+energy_90d                   139
+count_90d                    138
+elapsed_since_last_s         126
+mag_excess                   121
+count_7d                     111
+wsm_dist_km                   93
+depth_std_90d                 92
+count_30d                     92
+energy_1d                     85
+depth                         79
+b_value_90d                   78
+count_1d                      76
+energy_30d                    75
+energy_7d                     71
+depth_mean_90d                64
+fault_slip_type_enc           62
