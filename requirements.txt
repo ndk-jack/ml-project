@@ -1,8 +1,8 @@
-pandas
-numpy
-matplotlib
-seaborn
-scikit-learn
-joblib
-kagglehub
-jupyter
+geopandas==1.0.1
+numpy==2.0.2
+pandas==2.3.3
+pyogrio==0.11.1
+pyproj==3.6.1
+requests==2.32.5
+scikit-learn==1.6.1
+shapely==2.0.7
