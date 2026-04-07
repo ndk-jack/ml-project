@@ -23,7 +23,7 @@ The project is framed as a spatio-temporal forecasting problem.
 **Size**: 539 030 earthquakes after cleaning (magnitude ≥ 4.0, 1900–2026)  
 **Raw data**: not versioned — regenerate with the scripts below.
 
-## Features
+## ## Current Event-Level Features
 
 | Feature | Description |
 |---------|-------------|
@@ -37,7 +37,7 @@ The project is framed as a spatio-temporal forecasting problem.
 
 `dist_fault_km` is the most informative engineered feature: earthquakes near active faults tend to cluster in distinct magnitude regimes.
 
-## Results
+## Current Baseline Status
 
 ### Regression — predicting Magnitude
 
@@ -55,7 +55,8 @@ The project is framed as a spatio-temporal forecasting problem.
 
 Class imbalance: 97.4% non-dangerous / 2.6% dangerous. Threshold lowered to 0.25 (vs default 0.50) to improve recall on the minority class.
 
-## Scientific Conclusion
+The sections below describe the initial event-level baseline and do not yet reflect the anchor-grid forecasting setup.
+## Notes on Initial Event-Level Modeling
 
 **R² plateaus at ~0.37** regardless of the model. This is expected: earthquake magnitude is governed by fault rupture mechanics, accumulated tectonic stress, and subsurface geology — variables absent from the public USGS catalog. Location, depth, and time are weak proxies. This project demonstrates that a ceiling exists with observational catalog data alone, and that more informative features (seismic moment tensors, GPS crustal velocities, fault locking rates) would be required to push further.
 
