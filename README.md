@@ -96,32 +96,32 @@ Pre-2000 events have NaN for all M2 features (intentional — no catalog complet
 ## Reproduce
 
 ```bash
-# 0. Install dependencies (Python 3.9 required on macOS with Apple CLT)
+# 0. Install dependencies (Python 3.11 project venv)
 pip3.9 install -r requirements.txt
 
 # 1. Download primary catalog (M≥4, 1900–2026, chunked by year)
-python3.9 src/download_data.py
-python3.9 src/update_data.py
+python src/download_data.py
+python src/update_data.py
 
 # 2. Download supplementary M≥2 catalog (2000–2026, chunked by semester)
-python3.9 src/download_m2_catalog.py
+python src/download_m2_catalog.py
 
 # 3. Generate labels (label_7d, label_30d, label_365d)
-python3.9 src/labels.py
+python src/labels.py
 
 # 4. Feature engineering (dual-catalog, two-track)
-python3.9 src/features.py
+python src/features.py
 
 # 5. Build training datasets
-python3.9 src/prepare_and_train.py       # → dataset.csv
-python3.9 src/add_ratio_features.py      # → dataset_v2.csv
-python3.9 src/add_external_features.py   # → dataset_v3.csv
+python src/prepare_and_train.py       # → dataset.csv
+python src/add_ratio_features.py      # → dataset_v2.csv
+python src/add_external_features.py   # → dataset_v3.csv
 
 # 6. Train multi-horizon models
-python3.9 src/train_multi_horizon.py
+python src/train_multi_horizon.py
 
 # 7. (Optional) 30d-specific feature engineering
-python3.9 src/train_30d_enhanced.py
+python src/train_30d_enhanced.py
 ```
 
 ## Real-time Scoring API
@@ -135,7 +135,8 @@ A FastAPI service that polls the USGS real-time feed and scores incoming earthqu
 pip3.9 install fastapi uvicorn apscheduler pydantic --break-system-packages
 
 # Run (from project root)
-python3.9 -m uvicorn src.api.main:app --port 8000
+source .venv/bin/activate
+python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 ```
 
 Interactive docs: `http://localhost:8000/docs`
@@ -148,6 +149,16 @@ Interactive docs: `http://localhost:8000/docs`
 | `GET` | `/score/latest?n=10` | Score the N most recent M≥4 USGS events |
 | `POST` | `/score` | Score a single event (manual input) |
 | `GET` | `/events` | List recently scored events from cache |
+
+### Runtime artifacts required by the API
+
+The production API expects these runtime files to be present:
+
+- `data/external/historical_catalog_pre2010_m3.csv.gz` — historical pre-2010 M≥3 catalog used for `background_rate_yr`
+- `data/external/feature_medians_v3.json` — precomputed feature medians for inference-time imputation
+
+The rolling catalog is built at runtime from USGS and covers the last 92 days of M≥2 events.
+The initial rolling refresh is triggered in background at startup, so the API can come up before the first refresh completes.
 
 ### Example response (`/score/latest?n=1`)
 

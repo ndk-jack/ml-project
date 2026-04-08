@@ -3,9 +3,9 @@ main.py — FastAPI application for real-time earthquake sequence scoring.
 
 Startup sequence:
   1. CatalogManager.initialize() — load historical catalog + external data
-  2. CatalogManager.refresh_rolling() — fetch last 92 days from USGS
-  3. Scorer.initialize() — load LightGBM models + medians
-  4. APScheduler starts background polling every POLL_INTERVAL minutes
+  2. Scorer.initialize() — load LightGBM models + runtime medians
+  3. APScheduler starts background polling every POLL_INTERVAL minutes
+  4. Initial rolling refresh is triggered in a background thread
 
 Endpoints:
   GET  /health               — service status
@@ -15,7 +15,8 @@ Endpoints:
 
 Run:
   cd ~/ml-project
-  python3.9 -m uvicorn src.api.main:app --reload --port 8000
+  source .venv/bin/activate
+  python -m uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 """
 
 import logging

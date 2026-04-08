@@ -10,14 +10,18 @@ Earthquake sequence forecasting: given a reference earthquake, predict whether a
 
 ## Stack
 
-Python 3.9 (Apple CLT), pandas, numpy, scikit-learn, lightgbm, shap, geopandas, shapely.
+Python 3.11 (project venv), pandas, numpy, scikit-learn, lightgbm, shap, geopandas, shapely.
 
-**Important**: on macOS, `python3` = 3.14 (Homebrew, no packages). Always use the full path:
+**Important**: always activate the project venv before running scripts:
 ```bash
-/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9 src/<script>.py
+source .venv/bin/activate && python src/<script>.py
 ```
 
 ## Dataset
+
+| File | Description | Size |
+|------|-------------|------|
+**Raw training data** (not versioned — too large):
 
 | File | Description | Size |
 |------|-------------|------|
@@ -27,7 +31,12 @@ Python 3.9 (Apple CLT), pandas, numpy, scikit-learn, lightgbm, shap, geopandas, 
 | `data/external/wsm2016.csv` | World Stress Map 2016 | encoding=latin-1 |
 | `data/external/PB2002_boundaries.json` | Plate boundaries | — |
 
-Raw and feature files are **not versioned** (too large).
+**Runtime API artifacts** (versioned in repo via `git add -f`):
+
+| File | Description | Size |
+|------|-------------|------|
+| `data/external/historical_catalog_pre2010_m3.csv.gz` | Runtime historical catalog for API inference | ~298k events |
+| `data/external/feature_medians_v3.json` | Runtime feature medians for API inference | 64 medians |
 
 ## Temporal Split (canonical — never change)
 
@@ -41,12 +50,12 @@ No spatial leakage: labels use only future events relative to each reference ear
 ## Pipeline (run in order)
 
 ```bash
-python3.9 src/labels.py                  # → data/features/labels.csv
-python3.9 src/features.py                # → data/features/features.csv  (takes ~1h)
-python3.9 src/prepare_and_train.py       # → data/features/dataset.csv
-python3.9 src/add_ratio_features.py      # → data/features/dataset_v2.csv
-python3.9 src/add_external_features.py   # → data/features/dataset_v3.csv
-python3.9 src/train_multi_horizon.py     # → models/lgbm_{7d,30d,365d}.txt
+python src/labels.py                  # → data/features/labels.csv
+python src/features.py                # → data/features/features.csv  (takes ~1h)
+python src/prepare_and_train.py       # → data/features/dataset.csv
+python src/add_ratio_features.py      # → data/features/dataset_v2.csv
+python src/add_external_features.py   # → data/features/dataset_v3.csv
+python src/train_multi_horizon.py     # → models/lgbm_{7d,30d,365d}.txt
 ```
 
 ## Current Results (best models)
@@ -109,7 +118,8 @@ src/api/
 **Run:**
 ```bash
 cd ~/ml-project
-python3.9 -m uvicorn src.api.main:app --port 8000
+source .venv/bin/activate
+python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 ```
 
 **Stop:** `Ctrl+C` twice, or `lsof -ti :8000 | xargs kill -9`

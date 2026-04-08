@@ -2,7 +2,7 @@
 catalog_manager.py — Rolling in-memory catalog of recent seismic events.
 
 Responsibilities:
-  - Load the historical pre-2010 catalog at startup (for background_rate_yr)
+  - Load historical runtime artifact from data/external/ for background_rate_yr
   - Load and cache external data (GEM faults, WSM2016) at startup
   - Maintain a rolling 92-day window of recent M≥2 events (refreshed from USGS)
   - Expose a thread-safe interface for feature_engine.py to query neighbors
