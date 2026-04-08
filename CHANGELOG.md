@@ -1,32 +1,44 @@
-# CHANGELOG — Earthquake Sequence Forecasting
+# Changelog
 
-## [1.3.0] — 2026-04-08 — Production deployment
-### Added
-- src/api/database.py — Supabase persistence layer
-- migrations/001_scored_events.sql — PostgreSQL schema + RLS
-- Dockerfile + railway.toml — Railway deployment
-- Lovable dashboard — https://earthquake-watch.lovable.app
-### Infrastructure
-- API: https://ml-project-production-794e.up.railway.app
-- Docs: https://ml-project-production-794e.up.railway.app/docs
-- DB: Supabase sfykwnhynwwuvientblh, table scored_events
-- Frontend: https://earthquake-watch.lovable.app
+All notable changes to this project are documented in this file.
 
-## [1.2.0] — 2026-04 — Real-time scoring API
+## [Unreleased]
+
 ### Added
-- FastAPI + APScheduler (USGS polling every 5 min)
-- catalog_manager, feature_engine, scorer, database modules
-- 71 features computed per event in real-time
+-
+
+### Changed
+-
+
 ### Fixed
-- mag_std missing per window (60 vs 71 features)
-- scorer uses model.feature_name() — no hardcoded lists
+-
 
-## [1.1.0] — 2026-04 — Multi-horizon models
-- 7d ROC-AUC 0.8586 / 30d 0.8362 / 365d 0.9194
-- accel_count, accel_energy, mag_excess features added
-- Removed b_value_trend (NaN fill bug)
+### Infra
+-
 
-## [1.0.0] — 2026-04 — Dual-catalog pipeline
-- Completeness bias fix: M>=4 + M>=2 dual catalog
-- background_rate_yr = #1 feature across all horizons
-- GEM faults + WSM + plate boundaries integrated
+### Docs
+-
+
+## [v0.2.0-prod-stable] - 2026-04-08
+
+### Added
+- Added production runtime artifacts for the historical catalog and feature medians.
+- Added richer `/health` reporting for rolling catalog, historical catalog, scorer readiness, and Supabase status.
+
+### Changed
+- Standardized the project runtime on Python 3.11.
+- Moved API runtime artifacts to `data/external/`.
+- Made the initial rolling refresh non-blocking at startup.
+
+### Fixed
+- Fixed historical catalog loading in production.
+- Fixed rolling USGS refresh to cover the full 92-day M≥2 window with chunked fetch and deduplication.
+- Fixed scorer median loading visibility and fallback tracking.
+- Fixed Supabase env variable compatibility across `SUPABASE_SERVICE_KEY` and `SUPABASE_SERVICE_ROLE_KEY`.
+
+### Infra
+- Stabilized Railway deployment startup behavior and readiness.
+- Tagged the stable production release as `v0.2.0-prod-stable`.
+
+### Docs
+- Updated README, CLAUDE, and API docstrings for Python 3.11 and Railway runtime artifacts.
