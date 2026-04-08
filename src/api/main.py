@@ -20,6 +20,7 @@ Run:
 
 import logging
 import sys
+import threading
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -73,13 +74,10 @@ async def lifespan(app: FastAPI):
     # 1. Load static data
     catalog.initialize()
 
-    # 2. Fetch initial rolling catalog
-    catalog.refresh_rolling()
-
-    # 3. Load models
+    # 2. Load models
     scorer.initialize()
 
-    # 4. Start background scheduler
+    # 3. Start background scheduler
     _scheduler = BackgroundScheduler(timezone="UTC")
     _scheduler.add_job(
         catalog.refresh_rolling,
@@ -90,6 +88,13 @@ async def lifespan(app: FastAPI):
     )
     _scheduler.start()
     logger.info(f"USGS polling started (every {POLL_INTERVAL_MINUTES} min)")
+
+    # 4. Trigger one initial rolling refresh in background (non-blocking startup)
+    threading.Thread(
+        target=catalog.refresh_rolling,
+        daemon=True,
+        name="initial-rolling-refresh",
+    ).start()
 
     logger.info("=== API ready ===")
     yield
