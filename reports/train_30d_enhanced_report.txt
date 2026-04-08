@@ -1,0 +1,38 @@
+Target         : label_30d
+Baseline AUC   : 0.8362
+Enhanced AUC   : 0.8363  (▲0.0001)
+Avg Precision  : base=0.8498  enh=0.8498
+
+New features   : ['omori_proxy', 'rate_7d_vs_30d', 'energy_7d_vs_30d', 'moment_7d_vs_30d', 'b_trend_30d_90d', 'depth_migration', 'bath_proxy', 'mag_accel_7d_30d', 'count_30d_norm']
+
+              precision    recall  f1-score   support
+
+    No event       0.76      0.72      0.74    120945
+   Event ≥M5       0.73      0.77      0.75    121781
+
+    accuracy                           0.75    242726
+   macro avg       0.75      0.75      0.75    242726
+weighted avg       0.75      0.75      0.75    242726
+
+
+Top 20 features:
+background_rate_yr           659
+mag_mean_90d                 450
+energy_90d                   345
+dist_to_plate_boundary_km    341
+count_90d                    324
+magnitude                    297
+depth_mean_90d               279
+depth_std_90d                249
+mag_std_90d                  225
+energy_30d                   187
+b_value_90d                  178
+count_30d                    170
+energy_1d                    169
+dist_to_nearest_fault_km     167
+wsm_dist_km                  145
+elapsed_since_last_s         141
+shmax_cos                    131
+energy_7d                    128
+b_value_90d_m2               127
+depth_mean_7d                126
