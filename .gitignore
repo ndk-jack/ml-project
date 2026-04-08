@@ -52,3 +52,14 @@ outputs/metrics/*.json
 .gitconfig
 ops/
 data/features/
+
+# Runtime artifacts needed in production
+!data/
+data/*
+!data/api/
+!data/api/historical_catalog_pre2010_m3.csv.gz
+!data/api/feature_medians_v3.json
+!data/external/
+!data/external/**
+data/features/
+data/raw/
