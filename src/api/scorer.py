@@ -22,10 +22,10 @@ from feature_engine import FEATURE_COLS
 logger = logging.getLogger(__name__)
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-MODELS_DIR   = PROJECT_ROOT / "models"
-FEATURES_DIR = PROJECT_ROOT / "data" / "features"
-API_DIR      = PROJECT_ROOT / "data" / "api"
+PROJECT_ROOT       = Path(__file__).resolve().parents[2]
+RUNTIME_ASSETS_DIR = PROJECT_ROOT / "runtime_assets"
+MODELS_DIR         = PROJECT_ROOT / "models"
+FEATURES_DIR       = PROJECT_ROOT / "data" / "features"
 
 MODEL_FILES = {
     "7d":   MODELS_DIR / "lgbm_7d.txt",
@@ -190,7 +190,7 @@ class Scorer:
 
     def _load_medians(self):
         """Load training medians from packaged JSON artifact, fallback to dataset_v3.csv, then constants."""
-        medians_json = API_DIR / "feature_medians_v3.json"
+        medians_json = RUNTIME_ASSETS_DIR / "feature_medians_v3.json"
         dataset = FEATURES_DIR / "dataset_v3.csv"
 
         if medians_json.exists():
