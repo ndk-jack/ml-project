@@ -23,9 +23,9 @@ logger = logging.getLogger(__name__)
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 PROJECT_ROOT       = Path(__file__).resolve().parents[2]
-RUNTIME_ASSETS_DIR = PROJECT_ROOT / "runtime_assets"
 MODELS_DIR         = PROJECT_ROOT / "models"
 FEATURES_DIR       = PROJECT_ROOT / "data" / "features"
+RUNTIME_ASSETS_DIR = PROJECT_ROOT / "data" / "external"
 
 MODEL_FILES = {
     "7d":   MODELS_DIR / "lgbm_7d.txt",

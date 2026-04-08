@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 # ── Paths (relative to project root) ─────────────────────────────────────────
 
 PROJECT_ROOT       = Path(__file__).resolve().parents[2]
-RUNTIME_ASSETS_DIR = PROJECT_ROOT / "runtime_assets"
 DATA_DIR           = PROJECT_ROOT / "data"
 RAW_DIR            = DATA_DIR / "raw"
 EXTERNAL_DIR       = DATA_DIR / "external"
+RUNTIME_ASSETS_DIR = EXTERNAL_DIR
 
 PRIMARY_CATALOG    = RUNTIME_ASSETS_DIR / "historical_catalog_pre2010_m3.csv.gz"
 FALLBACK_CATALOGS = (
