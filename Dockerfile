@@ -38,4 +38,4 @@ COPY data/external/ ./data/external/
 EXPOSE 8000
 
 # Run from /app so relative paths (models/, data/) resolve correctly
-CMD python -m uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000
