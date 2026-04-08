@@ -124,11 +124,74 @@ python3.9 src/train_multi_horizon.py
 python3.9 src/train_30d_enhanced.py
 ```
 
+## Real-time Scoring API
+
+A FastAPI service that polls the USGS real-time feed and scores incoming earthquakes against the trained models.
+
+### Start
+
+```bash
+# Install API dependencies
+pip3.9 install fastapi uvicorn apscheduler pydantic --break-system-packages
+
+# Run (from project root)
+python3.9 -m uvicorn src.api.main:app --port 8000
+```
+
+Interactive docs: `http://localhost:8000/docs`
+
+### Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Service status, models loaded, catalog freshness |
+| `GET` | `/score/latest?n=10` | Score the N most recent M≥4 USGS events |
+| `POST` | `/score` | Score a single event (manual input) |
+| `GET` | `/events` | List recently scored events from cache |
+
+### Example response (`/score/latest?n=1`)
+
+```json
+{
+  "event_id": "us7000sba8",
+  "latitude": 35.7,
+  "longitude": 140.1,
+  "depth": 42.0,
+  "magnitude": 5.2,
+  "datetime": "2026-04-08T10:30:00+00:00",
+  "prob_7d": 0.6821,
+  "prob_30d": 0.7134,
+  "prob_365d": 0.9512,
+  "risk_7d": "🟠 Élevé",
+  "risk_30d": "🟠 Élevé",
+  "risk_365d": "🔴 Très élevé",
+  "features_used": 71,
+  "scored_at": "2026-04-08T10:40:09+00:00"
+}
+```
+
+### Architecture
+
+```
+src/api/
+├── main.py              # FastAPI app, endpoints, USGS polling (every 5 min)
+├── catalog_manager.py   # Rolling 92-day in-memory catalog + external data loader
+├── feature_engine.py    # Single-event feature computation (mirrors features.py)
+└── scorer.py            # LightGBM model loader, uses model.feature_name() for alignment
+```
+
+On startup: loads historical catalog + GEM faults + WSM + plate boundaries, fetches last 92 days from USGS, loads 3 LightGBM models, starts background polling.
+
 ## Repository structure
 
 ```
 ml-project/
 ├── src/
+│   ├── api/                      # Real-time scoring API
+│   │   ├── main.py
+│   │   ├── catalog_manager.py
+│   │   ├── feature_engine.py
+│   │   └── scorer.py
 │   ├── labels.py                 # Label generation (Haversine spatial search)
 │   ├── features.py               # Feature engineering (dual-catalog)
 │   ├── prepare_and_train.py      # Dataset assembly + XGBoost baseline

@@ -96,6 +96,37 @@ reports/
   lgbm_v3_classification_report.txt
 ```
 
+## Real-time API (src/api/)
+
+```
+src/api/
+├── main.py              # FastAPI + APScheduler — polls USGS every 5 min
+├── catalog_manager.py   # CatalogManager singleton — rolling 92d catalog + static data
+├── feature_engine.py    # compute_features(lat, lon, depth, mag, dt) → dict
+└── scorer.py            # Scorer singleton — uses model.feature_name() for alignment
+```
+
+**Run:**
+```bash
+cd ~/ml-project
+python3.9 -m uvicorn src.api.main:app --port 8000
+```
+
+**Stop:** `Ctrl+C` twice, or `lsof -ti :8000 | xargs kill -9`
+
+**Endpoints:** `/health`, `/score/latest?n=N`, `POST /score`, `/events`
+
+**Key design decisions:**
+- `scorer.py` calls `model.feature_name()` after loading — never hardcode feature lists
+- `catalog_manager.py` loads historical catalog (pre-2010, M≥3) for `background_rate_yr`
+- Rolling catalog = last 92 days M≥2 events from USGS, refreshed every 5 min
+- `feature_engine.py` computes 10 stats per window (count, rate, energy, moment, b_value, mag_mean, mag_max, **mag_std**, depth_mean, depth_std) — mag_std was missing in v1
+
+**Dependencies (in addition to requirements.txt):**
+```bash
+pip3.9 install fastapi uvicorn apscheduler pydantic --break-system-packages
+```
+
 ## WSM encoding fix
 
 ```python
