@@ -1,103 +1,103 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for working with this repository.
 
 ## Project Overview
 
-ML project on USGS earthquake data (1900–2026, ~540k events). Two prediction tasks:
-- **Regression**: predict earthquake magnitude (target: `Magnitude`)
-- **Classification**: predict if an earthquake is dangerous — `Magnitude >= 6.0` → `Dangerous=1`
+Earthquake sequence forecasting: given a reference earthquake, predict whether a M≥5.0 follow-up will occur within 200 km over three temporal horizons (7d / 30d / 365d). Binary classification, one LightGBM model per horizon.
+
+**Not** a magnitude regression problem. The old regression/classification pipeline (V1–V5) has been replaced entirely.
 
 ## Stack
 
-Python 3.9, pandas, numpy, matplotlib, seaborn, scikit-learn, scipy, requests, joblib.
-No virtual environment — packages installed via `pip3` to user site-packages (`~/Library/Python/3.9`).
-Jupyter installed but not in PATH; run with `~/Library/Python/3.9/bin/jupyter notebook`.
+Python 3.9 (Apple CLT), pandas, numpy, scikit-learn, lightgbm, shap, geopandas, shapely.
 
-## Pipeline
-
+**Important**: on macOS, `python3` = 3.14 (Homebrew, no packages). Always use the full path:
 ```bash
-python3 src/download_data.py       # Kaggle USGS 1965–2016 → data/database.csv
-python3 src/update_data.py         # USGS API 1900–today  → data/database_updated.csv
-python3 src/preprocess_updated.py  # clean + feature engineering → data/clean_updated.csv
-python3 src/train_time_split.py    # V1 baseline (canonical reference)
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9 src/<script>.py
 ```
 
 ## Dataset
 
-**Raw**: `data/database_updated.csv` — 540 796 rows, 23 columns, from USGS FDSN API chunked by year.
-**Clean**: `data/clean_updated.csv` — 539 030 rows, 10 columns. Pre-computed features: `dist_fault_km`, `IsCoastal`, `Season`, `Depth_category`.
+| File | Description | Size |
+|------|-------------|------|
+| `data/raw/database_updated.csv` | Primary catalog M≥4.0, 1900–2026 | ~540k events |
+| `data/raw/catalog_m2_m4.csv` | Supplementary M≥2 context, 2000–2026 | ~650k events |
+| `data/external/gem_active_faults.geojson` | GEM Global Active Faults | 16,195 segments |
+| `data/external/wsm2016.csv` | World Stress Map 2016 | encoding=latin-1 |
+| `data/external/PB2002_boundaries.json` | Plate boundaries | — |
 
-Merge strategy (used in all experiment scripts): dedup `clean_updated` on `(Date, Latitude, Longitude, Depth)` → left-join on exact floats. Match rate: 99.85% (792 rows median-imputed by pipeline).
+Raw and feature files are **not versioned** (too large).
 
-Class imbalance: train 3.1% dangerous / val+test ~0.9%. The drop is a detection network expansion artifact, not a real hazard change.
+## Temporal Split (canonical — never change)
 
-## Time Split (canonical — never change)
+| Split | Criterion | Rows |
+|-------|-----------|------|
+| Train | year < 2010 | 296,831 |
+| Test | year ≥ 2010 | 242,726 |
 
-| Split | Years | Rows |
-|-------|-------|------|
-| Train | ≤ 2018 | 427 290 |
-| Val | 2019–2022 | 60 431 |
-| Test | 2023–2025 | 48 577 |
+No spatial leakage: labels use only future events relative to each reference earthquake.
 
-## V1 Reference Metrics (locked)
+## Pipeline (run in order)
 
-Classifier: `RandomForestClassifier(n_estimators=200, class_weight="balanced_subsample", random_state=42, n_jobs=-1)`
-Threshold tuned on val F2 (500 points, 0.01–0.60).
-
-| Split | PR-AUC | F2 |
-|-------|--------|----|
-| Val | 0.3479 | 0.5460 |
-| Test | 0.3504 | 0.5200 |
-
-Source: `outputs/metrics/metrics_time_split.json`
-
-## Experiment Branches & Scripts
-
-All experiments use the same RF settings and split as V1. IMPROVEMENT verdict requires **both** val PR-AUC > 0.3479 **and** test PR-AUC > 0.3504.
-
-| Branch | Script | Verdict | Key result |
-|--------|--------|---------|------------|
-| `feature/modeling-v1` | `src/train_time_split.py` | — | Canonical V1 baseline |
-| `experiment/modeling-v2-classification` | `src/tune_classification_v2.py` | — | Hyperparameter search (5-iter RandomizedCV, 2-fold, 20% subsample + prefit calibration) |
-| `experiment/modeling-v3-features` | `src/train_features_v3.py` | — | Initial feature engineering exploration |
-| `experiment/modeling-v3-1-controlled` | `src/train_features_v3_controlled.py` | **MIXED** | Full V3 set: val PR-AUC +0.0011, test F2 +0.020 but test PR-AUC −0.0017 |
-| `experiment/modeling-v4-temporal-reweighting` | `src/train_temporal_reweighting_v4.py` | **NO IMPROVEMENT** | Piecewise weights (1.0→3.0 by era): test PR-AUC −0.0076, test F2 −0.008 |
-| `experiment/modeling-v5-feature-ablation` | `src/train_feature_ablation_v5.py` | **weak_signal** | See ablation table below |
-
-## V5 Ablation Results
-
-Isolates which feature caused the V3.1 +0.020 test F2 gain.
-
-| Setup | N | val PR-AUC | val F2 | test PR-AUC | test F2 | Verdict |
-|-------|---|-----------|--------|------------|--------|---------|
-| baseline_v1 | 10 | 0.3479 | 0.5460 | 0.3504 | 0.5200 | NO IMPROVEMENT |
-| +dist_fault_km | 11 | 0.3505 | 0.5370 | 0.3385 | 0.5180 | MIXED |
-| +IsCoastal | 11 | 0.3405 | 0.5245 | 0.3374 | 0.5217 | NO IMPROVEMENT |
-| +dist_fault_km+IsCoastal | 12 | 0.3490 | 0.5385 | 0.3314 | 0.5115 | MIXED |
-| +full_v3_engineered | 18 | 0.3490 | 0.5428 | 0.3487 | 0.5399 | MIXED |
-
-**Conclusion**: No feature addition consistently improves over V1. The +0.020 test F2 in V3.1 is threshold variance, not a real gain. The feature engineering path is a dead end for this dataset.
-
-## Scientific Limits
-
-R² is capped at ~0.37 for regression. PR-AUC is capped near 0.35 for classification. Magnitude depends on fault rupture mechanics, stress accumulation, and subsurface geology — none captured by location, depth, and time alone. The train→val/test class rate drop (3.1% → 0.9%) reflects network expansion, not model error; temporal reweighting does not fix it.
-
-## Outputs
-
+```bash
+python3.9 src/labels.py                  # → data/features/labels.csv
+python3.9 src/features.py                # → data/features/features.csv  (takes ~1h)
+python3.9 src/prepare_and_train.py       # → data/features/dataset.csv
+python3.9 src/add_ratio_features.py      # → data/features/dataset_v2.csv
+python3.9 src/add_external_features.py   # → data/features/dataset_v3.csv
+python3.9 src/train_multi_horizon.py     # → models/lgbm_{7d,30d,365d}.txt
 ```
-outputs/metrics/metrics_time_split.json               # V1 reference
-outputs/metrics/metrics_feature_v3_controlled.json    # V3.1 controlled
-outputs/metrics/metrics_temporal_reweighting_v4.json  # V4
-outputs/metrics/metrics_feature_ablation_v5.json      # V5 ablation
-outputs/models/best_classifier_v3_controlled.joblib
-outputs/models/best_classifier_v4.joblib
-outputs/models/best_classifier_v5.joblib              # best = baseline_v1 (F2=0.546)
-```
+
+## Current Results (best models)
+
+| Horizon | ROC-AUC | Avg Precision | Notes |
+|---------|---------|---------------|-------|
+| 7d  | **0.8586** | 0.7777 | best overall |
+| 30d | 0.8362 | 0.8498 | plateau (~50% pos rate) |
+| 365d | 0.9194 | 0.9888 | near-trivial (high pos rate) |
+
+## Feature Engineering
+
+Features computed per reference event using BallTree (Haversine, 200 km radius).
+
+**Two-track catalog** (completeness bias fix):
+- `compute_coherent_window_features`: M≥4.0 events only, consistent 1900–2026
+- `compute_m2_window_features`: M≥2 context catalog, NaN for pre-2000 events
+
+**Key features** (by importance rank in 7d model):
+1. `background_rate_yr` — M≥3 events/year within 200km, computed on pre-2010 data only (leakage-safe)
+2. `magnitude` — reference event magnitude
+3. `mag_mean_90d` — local magnitude regime
+4. `count_90d`, `energy_90d` — long-term activity
+5. `dist_to_plate_boundary_km` — tectonic context
+
+**Never use** `b_value_trend = b_value_7d - b_value_90d` with NaN fill → produces mean ~1.8 billion. Use `b_trend_30d_90d = clip(b30 - b90, -1, 1)` instead.
 
 ## Modeling Conventions
 
-- Scripts are run from project root: `python3 src/<script>.py`
-- Preprocessing pipeline: `ColumnTransformer(SimpleImputer(median) + OneHotEncoder(handle_unknown='ignore'))`
-- Threshold tuning always on val only, never on test
-- All plots saved to `outputs/` via `matplotlib.use('Agg')`
+- One model per label: `label_7d`, `label_30d`, `label_365d`
+- `scale_pos_weight = neg / pos` for class imbalance
+- LightGBM params: `n_estimators=1000, learning_rate=0.05, num_leaves=63, subsample=0.8, colsample_bytree=0.8, early_stopping=50`
+- Drop always: `datetime, ref_lat, ref_lon, latitude, longitude, wsm_quality_enc` (importance≈0)
+- Metric: ROC-AUC on test set (year ≥ 2010)
+
+## Models & Reports
+
+```
+models/
+  lgbm_7d.txt          # best 7d model  (ROC-AUC 0.8586)
+  lgbm_30d.txt         # best 30d model (ROC-AUC 0.8362)
+  lgbm_365d.txt        # best 365d model
+  lgbm_30d_enhanced.txt
+reports/
+  multi_horizon_summary.txt
+  train_30d_enhanced_report.txt
+  lgbm_v3_classification_report.txt
+```
+
+## WSM encoding fix
+
+```python
+wsm = pd.read_csv("data/external/wsm2016.csv", encoding="latin-1", low_memory=False)
+```
