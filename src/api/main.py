@@ -39,6 +39,7 @@ sys.path.insert(0, str(__file__).replace("/main.py", ""))
 from catalog_manager import catalog
 from feature_engine import compute_features, features_to_series
 from scorer import scorer
+import database
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -189,10 +190,13 @@ def _score_event(
         **scores,
     }
 
-    # Add to cache
+    # Add to in-memory cache
     _scored_cache.append(result)
     if len(_scored_cache) > MAX_CACHE_SIZE:
         _scored_cache.pop(0)
+
+    # Persist to Supabase (fire-and-forget — never blocks the response)
+    database.insert_scored_event(result)
 
     return result
 
@@ -253,6 +257,7 @@ def health():
             "historical_catalog": catalog.hist_tree is not None,
         },
         "poll_interval_minutes": POLL_INTERVAL_MINUTES,
+        "supabase":              database.is_ready(),
     }
 
 

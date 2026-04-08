@@ -1,0 +1,14 @@
+[build]
+# Railway auto-detects the Dockerfile — no extra config needed.
+# If your repo root contains the Dockerfile, leave this as-is.
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Restart policy: Railway restarts the container on crash
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Health check — Railway routes traffic only after /health returns 200
+healthcheckPath = "/health"
+healthcheckTimeout = 120     # seconds — generous for catalog load at startup
