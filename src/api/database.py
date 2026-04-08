@@ -97,7 +97,7 @@ def insert_scored_event(result: dict) -> bool:
             "longitude":     result.get("longitude"),
             "depth":         result.get("depth"),
             "magnitude":     result.get("magnitude"),
-            "event_time":    result.get("datetime"),
+            "event_datetime": result.get("datetime"),
             "prob_7d":       result.get("prob_7d"),
             "prob_30d":      result.get("prob_30d"),
             "prob_365d":     result.get("prob_365d"),
@@ -161,8 +161,8 @@ def get_recent_events(
         # Normalise column names to match ScoreResponse schema
         # (event_time → datetime, so the API response stays consistent)
         for row in rows:
-            if "event_time" in row and "datetime" not in row:
-                row["datetime"] = row.pop("event_time")
+            if "event_datetime" in row and "datetime" not in row:
+                row["datetime"] = row.pop("event_datetime")
 
         return rows
 
