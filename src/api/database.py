@@ -7,11 +7,12 @@ Responsibilities:
   - get_recent_events(limit, min_prob_7d) → query Supabase for the /events endpoint
 
 Environment variables required:
-  SUPABASE_URL          — e.g. https://sfykwnhynwwuvientblh.supabase.co
-  SUPABASE_SERVICE_KEY  — service_role key (secret — never expose in frontend)
+  SUPABASE_URL               — e.g. https://sfykwnhynwwuvientblh.supabase.co
+  SUPABASE_SERVICE_KEY       — preferred service_role key name
+  SUPABASE_SERVICE_ROLE_KEY  — accepted fallback name for compatibility
 
 Optional:
-  SUPABASE_ENABLED      — set to "false" to disable persistence (local dev)
+  SUPABASE_ENABLED           — set to "false" to disable persistence (local dev)
 
 Table expected in Supabase (run migrations/001_scored_events.sql first):
   scored_events (see migrations/ for full schema)
@@ -29,6 +30,15 @@ _client = None
 _enabled: Optional[bool] = None
 
 
+def _get_supabase_credentials() -> tuple[Optional[str], Optional[str]]:
+    url = os.getenv("SUPABASE_URL")
+    key = (
+        os.getenv("SUPABASE_SERVICE_KEY")
+        or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    )
+    return url, key
+
+
 def _is_enabled() -> bool:
     global _enabled
     if _enabled is not None:
@@ -37,12 +47,12 @@ def _is_enabled() -> bool:
         logger.info("Supabase persistence disabled (SUPABASE_ENABLED=false).")
         _enabled = False
         return False
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_SERVICE_KEY")
+    url, key = _get_supabase_credentials()
     if not url or not key:
         logger.warning(
             "Supabase credentials not found. "
-            "Set SUPABASE_URL and SUPABASE_SERVICE_KEY to enable persistence."
+            "Set SUPABASE_URL and SUPABASE_SERVICE_KEY "
+            "(or SUPABASE_SERVICE_ROLE_KEY) to enable persistence."
         )
         _enabled = False
         return False
@@ -60,12 +70,11 @@ def _get_client():
         from supabase import create_client  # type: ignore
     except ImportError:
         raise ImportError(
-            "supabase package not installed. "
-            "Run: pip3.9 install supabase --break-system-packages"
+            "supabase package not installed in the active environment. "
+            "Install it in the project venv with: pip install supabase"
         )
 
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_SERVICE_KEY")
+    url, key = _get_supabase_credentials()
     _client = create_client(url, key)
     logger.info("Supabase client created.")
     return _client

@@ -8,6 +8,7 @@ Responsibilities:
   - Compute a human-readable risk level per horizon
 """
 
+import json
 import logging
 from pathlib import Path
 from typing import Optional
@@ -21,8 +22,10 @@ from feature_engine import FEATURE_COLS
 logger = logging.getLogger(__name__)
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-MODELS_DIR  = Path("models")
-DATA_DIR    = Path("data/features")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+MODELS_DIR   = PROJECT_ROOT / "models"
+FEATURES_DIR = PROJECT_ROOT / "data" / "features"
+API_DIR      = PROJECT_ROOT / "data" / "api"
 
 MODEL_FILES = {
     "7d":   MODELS_DIR / "lgbm_7d.txt",
@@ -77,8 +80,13 @@ class Scorer:
 
     def __init__(self):
         self.models: dict[str, lgb.Booster] = {}
-        self.medians: dict[str, float]       = {}
+        self.medians: dict[str, float] = {}
         self._ready = False
+
+        self.using_fallback_medians: bool = False
+        self.medians_source: str | None = None
+        self.last_imputed_feature_count: int = 0
+        self.last_imputed_features: list[str] = []
 
     def initialize(self):
         """Load models and compute imputation medians. Call once at startup."""
@@ -113,26 +121,45 @@ class Scorer:
 
         result = {}
         total_used = 0
+        imputed_features_all: set[str] = set()
+        total_imputed_count = 0
 
         for horizon, model in self.models.items():
             # Use the exact feature list the model was trained with
             expected = model.feature_name()
-            vec = pd.Series(
-                {col: feats.get(col, np.nan) for col in expected}
-            )
+            vec = pd.Series({col: feats.get(col, np.nan) for col in expected})
+
             # Impute NaN with training medians
             nan_mask = vec.isna()
-            nan_count = int(nan_mask.sum())
-            for col in vec.index[nan_mask]:
+            missing_cols = list(vec.index[nan_mask])
+            nan_count = len(missing_cols)
+
+            for col in missing_cols:
                 vec[col] = self.medians.get(col, 0.0)
 
-            X    = vec.values.reshape(1, -1)
+            imputed_features_all.update(missing_cols)
+            total_imputed_count += nan_count
+
+            X = vec.values.reshape(1, -1)
             prob = float(model.predict(X)[0])
+
             result[f"prob_{horizon}"] = round(prob, 4)
             result[f"risk_{horizon}"] = _risk_label(prob)
             total_used = max(total_used, len(expected) - nan_count)
 
+        self.last_imputed_feature_count = total_imputed_count
+        self.last_imputed_features = sorted(imputed_features_all)
+
+        if total_imputed_count > 0:
+            logger.info(
+                "Score imputation used %s values across %s unique features.",
+                total_imputed_count,
+                len(self.last_imputed_features),
+            )
+
         result["features_used"] = total_used
+        result["imputed_feature_count"] = total_imputed_count
+        result["imputed_unique_features"] = len(self.last_imputed_features)
 
         # Fill missing horizons as None
         for h in ["7d", "30d", "365d"]:
@@ -162,21 +189,43 @@ class Scorer:
             )
 
     def _load_medians(self):
-        """Load training medians from dataset_v3.csv, fallback to constants."""
-        dataset = DATA_DIR / "dataset_v3.csv"
+        """Load training medians from packaged JSON artifact, fallback to dataset_v3.csv, then constants."""
+        medians_json = API_DIR / "feature_medians_v3.json"
+        dataset = FEATURES_DIR / "dataset_v3.csv"
+
+        if medians_json.exists():
+            try:
+                logger.info(f"Loading imputation medians from {medians_json}…")
+                self.medians = json.loads(medians_json.read_text())
+                self.medians = {k: float(v) for k, v in self.medians.items()}
+                self.using_fallback_medians = False
+                self.medians_source = str(medians_json)
+                logger.info(
+                    f"Medians loaded for {len(self.medians)} features from {medians_json}."
+                )
+                return
+            except Exception as e:
+                logger.warning(f"Could not read median artifact {medians_json}: {e}")
+
         if dataset.exists():
             try:
                 logger.info("Computing imputation medians from dataset_v3.csv…")
-                df = pd.read_csv(dataset, usecols=FEATURE_COLS,
-                                 low_memory=False)
-                self.medians = df.median().to_dict()
-                logger.info(f"Medians computed for {len(self.medians)} features.")
+                df = pd.read_csv(dataset, usecols=FEATURE_COLS, low_memory=False)
+                self.medians = df.median(numeric_only=True).to_dict()
+                self.medians = {k: float(v) for k, v in self.medians.items()}
+                self.using_fallback_medians = False
+                self.medians_source = str(dataset)
+                logger.info(
+                    f"Medians computed for {len(self.medians)} features from {dataset}."
+                )
                 return
             except Exception as e:
                 logger.warning(f"Could not read dataset_v3.csv: {e}")
 
-        logger.info("Using fallback medians.")
+        logger.warning("Using fallback medians.")
         self.medians = FALLBACK_MEDIANS.copy()
+        self.using_fallback_medians = True
+        self.medians_source = "FALLBACK_MEDIANS"
 
 
 # Singleton

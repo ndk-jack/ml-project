@@ -236,28 +236,90 @@ def _fetch_usgs_latest(n: int) -> list[dict]:
 @app.get("/health", tags=["System"])
 def health():
     """Service status and component availability."""
-    rolling_ok = not catalog.rolling_df.empty
-    rolling_n  = len(catalog.rolling_df) if rolling_ok else 0
-    rolling_latest = (
+
+    rolling_ok = not catalog.rolling_df.empty and catalog.rolling_tree is not None
+    historical_ok = catalog.hist_tree is not None and getattr(catalog, "hist_loaded", False)
+
+    rolling_min = (
+        catalog.rolling_df["datetime"].min().isoformat()
+        if rolling_ok else None
+    )
+    rolling_max = (
         catalog.rolling_df["datetime"].max().isoformat()
         if rolling_ok else None
     )
+
+    historical_min = (
+        catalog.hist_df["datetime"].min().isoformat()
+        if historical_ok and not catalog.hist_df.empty else None
+    )
+    historical_max = (
+        catalog.hist_df["datetime"].max().isoformat()
+        if historical_ok and not catalog.hist_df.empty else None
+    )
+
+    external_ok = (
+        catalog.gem_fault_union is not None and
+        not catalog.wsm_df.empty and
+        catalog.pb_tree is not None
+    )
+
+    supabase_ok = database.is_ready()
+
+    overall_ok = (
+        scorer.ready and
+        rolling_ok and
+        historical_ok and
+        external_ok
+    )
+
     return {
-        "status":          "ok" if scorer.ready else "degraded",
-        "models_loaded":   list(scorer.models.keys()),
+        "status": "ok" if overall_ok else "degraded",
+        "startup_mode": "normal" if overall_ok else "degraded",
+        "models_loaded": list(scorer.models.keys()),
+        "model_count": len(scorer.models),
         "rolling_catalog": {
-            "ok":    rolling_ok,
-            "events": rolling_n,
-            "latest": rolling_latest,
+            "ok": rolling_ok,
+            "events": getattr(catalog, "rolling_events", len(catalog.rolling_df)),
+            "unique_event_ids": (
+                int(catalog.rolling_df["event_id"].nunique())
+                if rolling_ok and "event_id" in catalog.rolling_df.columns else 0
+            ),
+            "window_start": (
+                catalog.rolling_window_start.isoformat()
+                if getattr(catalog, "rolling_window_start", None) else rolling_min
+            ),
+            "window_end": (
+                catalog.rolling_window_end.isoformat()
+                if getattr(catalog, "rolling_window_end", None) else rolling_max
+            ),
+            "last_refresh_at": (
+                catalog.rolling_last_refresh_at.isoformat()
+                if getattr(catalog, "rolling_last_refresh_at", None) else None
+            ),
+            "min_datetime": rolling_min,
+            "max_datetime": rolling_max,
+        },
+        "historical_catalog": {
+            "ok": historical_ok,
+            "events": getattr(catalog, "hist_events", 0),
+            "source": getattr(catalog, "hist_source", None),
+            "span_years": round(getattr(catalog, "hist_span_yr", 0.0), 2),
+            "min_datetime": historical_min,
+            "max_datetime": historical_max,
         },
         "external_data": {
             "gem_faults": catalog.gem_fault_union is not None,
-            "wsm":        not catalog.wsm_df.empty,
+            "wsm": not catalog.wsm_df.empty,
             "plate_boundaries": catalog.pb_tree is not None,
-            "historical_catalog": catalog.hist_tree is not None,
+        },
+        "scorer": {
+            "ready": scorer.ready,
+            "using_fallback_medians": getattr(scorer, "using_fallback_medians", None),
         },
         "poll_interval_minutes": POLL_INTERVAL_MINUTES,
-        "supabase":              database.is_ready(),
+        "supabase": supabase_ok,
+        "server_time_utc": datetime.now(timezone.utc).isoformat(),
     }
 
 
