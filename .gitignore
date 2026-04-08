@@ -49,3 +49,6 @@ outputs/models/
 __pycache__/
 .DS_Store
 outputs/metrics/*.json
+.gitconfig
+ops/
+data/features/
