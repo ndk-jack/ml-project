@@ -11,10 +11,11 @@ champion:
 dataset:
   path: /Users/nazlidecker/ml-project/data/features/dataset_v3.csv
   version: dataset_v3
+  time_column: datetime
   target_columns:
-    - target_7d
-    - target_30d
-    - target_365d
+    - label_7d
+    - label_30d
+    - label_365d
 
 split:
   type: temporal
@@ -23,7 +24,10 @@ split:
   test_end: "2026-12-31"
 
 metrics:
-  primary: pr_auc
+  primary_by_horizon:
+    label_7d: pr_auc
+    label_30d: pr_auc
+    label_365d: brier_score
   secondary:
     - roc_auc
     - brier_score
