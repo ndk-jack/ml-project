@@ -1,0 +1,34 @@
+benchmark_id: benchmark_v1
+experiment_name: earthquake-forecasting
+tracking_uri: file:/Users/nazlidecker/ml-project/mlruns
+
+champion:
+  tag: v0.2.0-prod-stable
+  model_family: lightgbm
+  feature_set_version: feature_set_v3_prod
+  split_version: split_temporal_v1
+
+dataset:
+  path: /Users/nazlidecker/ml-project/data/features/dataset_v3.csv
+  version: dataset_v3
+  target_columns:
+    - target_7d
+    - target_30d
+    - target_365d
+
+split:
+  type: temporal
+  train_end: "2018-12-31"
+  validation_end: "2021-12-31"
+  test_end: "2026-12-31"
+
+metrics:
+  primary: pr_auc
+  secondary:
+    - roc_auc
+    - brier_score
+
+baseline:
+  type: class_frequency
+
+seed: 42

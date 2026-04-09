@@ -63,3 +63,7 @@ data/*
 !data/external/**
 data/features/
 data/raw/
+
+mlruns/
+experiments/artifacts/
+experiments/reports/
