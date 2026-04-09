@@ -1,6 +1,6 @@
 benchmark_id: benchmark_v1
 experiment_name: earthquake-forecasting
-tracking_uri: file:/Users/nazlidecker/ml-project/mlruns
+tracking_uri: sqlite:////Users/nazlidecker/ml-project/mlflow.db
 
 champion:
   tag: v0.2.0-prod-stable

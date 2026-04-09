@@ -67,3 +67,5 @@ data/raw/
 mlruns/
 experiments/artifacts/
 experiments/reports/
+
+mlflow.db
