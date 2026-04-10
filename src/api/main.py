@@ -37,6 +37,7 @@ from pydantic import BaseModel, Field
 from .catalog_manager import catalog
 from .feature_engine import compute_features, features_to_series
 from .scorer import scorer
+from .router_public import router as public_router
 from . import database
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -113,6 +114,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+app.include_router(public_router)
 
 app.add_middleware(
     CORSMiddleware,

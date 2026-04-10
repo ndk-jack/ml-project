@@ -289,3 +289,63 @@ def is_ready() -> bool:
         return True
     except Exception:
         return False
+
+
+PUBLIC_SCORED_EVENT_COLUMNS = ",".join([
+    "event_id",
+    "event_datetime",
+    "latitude",
+    "longitude",
+    "depth",
+    "magnitude",
+    "prob_7d",
+    "prob_30d",
+    "prob_365d",
+    "risk_7d",
+    "risk_30d",
+    "risk_365d",
+    "scored_at",
+    "model_version",
+    "benchmark_id",
+    "feature_set_version",
+    "dataset_version",
+])
+
+
+def list_scored_events_public(limit: int = 50) -> list[dict]:
+    if not _is_enabled():
+        return []
+
+    try:
+        client = _get_client()
+        response = (
+            client.table("scored_events")
+            .select(PUBLIC_SCORED_EVENT_COLUMNS)
+            .order("scored_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return response.data if hasattr(response, "data") and response.data else []
+    except Exception as e:
+        logger.error(f"Failed to list scored_events public: {e}")
+        return []
+
+
+def get_scored_event_public(event_id: str) -> Optional[dict]:
+    if not _is_enabled():
+        return None
+
+    try:
+        client = _get_client()
+        response = (
+            client.table("scored_events")
+            .select(PUBLIC_SCORED_EVENT_COLUMNS)
+            .eq("event_id", event_id)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data if hasattr(response, "data") and response.data else []
+        return rows[0] if rows else None
+    except Exception as e:
+        logger.error(f"Failed to get scored_event public for {event_id}: {e}")
+        return None
