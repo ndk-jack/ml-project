@@ -37,7 +37,7 @@ from pydantic import BaseModel, Field
 from .catalog_manager import catalog
 from .feature_engine import compute_features, features_to_series
 from .scorer import scorer
-from . import database
+from . from . import database
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
