@@ -62,3 +62,5 @@ All notable changes to this project are documented in this file.
 
 ### Docs
 - Updated README, CLAUDE, and API docstrings for Python 3.11 and Railway runtime artifacts.
+
+- 2026-04-10: feedback loop MVP merged on feat/data-clean-rebuild-v4 (prediction_log, prediction_outcomes, batch delayed evaluation).
