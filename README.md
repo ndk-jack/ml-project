@@ -258,3 +258,7 @@ ml-project/
 **Why separate M≥2 features?** The M≥2 catalog only covers 2000–2026. Mixing it with M≥4 features (1900–2026) in the same time windows creates a completeness bias: pre-2000 events appear artificially quiescent. The two-track approach (coherent + M2-enriched) corrects this by assigning NaN to pre-2000 events for all M2 features.
 
 **Why background_rate_yr is #1?** It encodes the tectonic regime of the zone in a single number. A zone with 50 events/year has fundamentally different aftershock statistics than one with 2 events/year. Normalizing by this baseline removes the regional bias and lets the model focus on anomalies.
+
+## Repo scope
+- This repository owns backend, ML pipelines, jobs, and Supabase integration.
+- Frontend lives in https://github.com/ndk-jack/quakehub-live
