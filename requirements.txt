@@ -11,3 +11,4 @@ supabase
 
 mlflow
 PyYAML
+optuna
