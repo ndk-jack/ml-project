@@ -262,3 +262,7 @@ ml-project/
 ## Repo scope
 - This repository owns backend, ML pipelines, jobs, and Supabase integration.
 - Frontend lives in https://github.com/ndk-jack/quakehub-live
+
+## Repo scope
+- This repository owns backend, ML pipelines, jobs, and Supabase integration.
+- Frontend lives in https://github.com/ndk-jack/quakehub-live
