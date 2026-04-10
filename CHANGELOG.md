@@ -14,6 +14,16 @@ All notable changes to this project are documented in this file.
 - Added comparable naive baseline metrics for benchmark evaluation.
 - Added baseline vs challenger comparison script for MLflow runs.
 
+### Changed
+- Completed a first Optuna pass on `benchmark_v2` for `label_7d` and `label_30d`.
+- Kept `label_365d` out of the active benchmark scope.
+- Observed only marginal tuning gains versus the simple benchmarked LightGBM challenger, especially for `label_7d`.
+
+### Notes
+- `label_7d` appears close to a performance ceiling with the current feature set.
+- `label_30d` benefits slightly from tuned hyperparameters, but gains remain modest.
+- Next optimization work should focus on feature quality and feature selection rather than larger Optuna budgets.
+
 ### Added
 -
 
