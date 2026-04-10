@@ -32,7 +32,7 @@ def get_git_sha() -> str:
 def build_dataset_manifest(dataset_path: Path, time_column: str, target_columns: list[str]) -> dict:
     usecols = [time_column] + target_columns
     df = pd.read_csv(dataset_path, usecols=usecols, low_memory=False)
-    df[time_column] = pd.to_datetime(df[time_column], errors="coerce", utc=True)
+    df[time_column] = pd.to_datetime(df[time_column], format="mixed", errors="coerce", utc=True)
     df = df.dropna(subset=[time_column]).copy()
 
     manifest = {
@@ -102,6 +102,7 @@ def main():
                 "target_columns": ",".join(target_columns),
                 "model_family": cfg["champion"]["model_family"],
                 "champion_tag": cfg["champion"]["tag"],
+                "benchmark_path": cfg["_benchmark_path"],
             }
         )
 

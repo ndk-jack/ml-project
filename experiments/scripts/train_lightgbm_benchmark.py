@@ -56,7 +56,12 @@ def main():
     target_columns = cfg["dataset"]["target_columns"]
 
     df = pd.read_csv(dataset_path, low_memory=False)
-    df[time_col] = pd.to_datetime(df[time_col], errors="coerce", utc=True)
+    df[time_col] = pd.to_datetime(
+    df[time_col],
+    format="%Y-%m-%d %H:%M:%S%z",
+    errors="coerce",
+    utc=True,
+)
     df = df.dropna(subset=[time_col]).copy()
 
     train_end = pd.Timestamp(cfg["split"]["train_end"], tz="UTC")
@@ -128,6 +133,7 @@ def main():
                     "feature_count": len(feature_cols),
                     **common_params,
                     "n_estimators": 300,
+                    "benchmark_path": cfg["_benchmark_path"],
                 }
             )
 

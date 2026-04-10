@@ -1,0 +1,36 @@
+benchmark_id: benchmark_v2
+experiment_name: earthquake-forecasting
+tracking_uri: sqlite:////Users/nazlidecker/ml-project/mlflow.db
+
+champion:
+  tag: v0.2.0-prod-stable
+  model_family: lightgbm
+  feature_set_version: feature_set_v5_dedup_candidate
+  split_version: split_temporal_v1
+
+dataset:
+  path: /Users/nazlidecker/ml-project/data/features_clean/dataset_v5_dedup.csv
+  version: dataset_v5_dedup
+  time_column: datetime
+  target_columns:
+    - label_7d
+    - label_30d
+
+split:
+  type: temporal
+  train_end: "2018-12-31"
+  validation_end: "2021-12-31"
+  test_end: "2026-12-31"
+
+metrics:
+  primary_by_horizon:
+    label_7d: pr_auc
+    label_30d: pr_auc
+  secondary:
+    - roc_auc
+    - brier_score
+
+baseline:
+  type: class_frequency
+
+seed: 42

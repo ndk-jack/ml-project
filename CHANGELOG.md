@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Introduced `benchmark_v2` based on `dataset_v5_dedup.csv` for cleaner 7d / 30d benchmarking.
+- Removed `label_365d` from the active benchmark scope because the target is heavily skewed toward the positive class and is less informative for early model iteration.
+- Deduplicated perfectly redundant features in the new candidate dataset (`rate_*`, `ref_lat/ref_lon`, `moment_*` removed in favor of simpler equivalents).
+
+### Added
+- Added dataset cleaning rules and manifests for `dataset_v5_dedup`.
+- Added comparable naive baseline metrics for benchmark evaluation.
+- Added baseline vs challenger comparison script for MLflow runs.
+
 ### Added
 -
 

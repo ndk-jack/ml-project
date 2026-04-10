@@ -2,9 +2,14 @@ from pathlib import Path
 import subprocess
 
 import mlflow
+import numpy as np
 import pandas as pd
+from sklearn.metrics import average_precision_score, roc_auc_score, brier_score_loss
 
 from config import load_benchmark_config
+
+
+PROJECT_ROOT = Path("/Users/nazlidecker/ml-project")
 
 
 def get_git_sha(project_root: Path) -> str:
@@ -21,11 +26,23 @@ def get_git_sha(project_root: Path) -> str:
         return "unknown"
 
 
-def compute_rates(df: pd.DataFrame, targets: list[str]) -> dict:
+def compute_metrics(y_true, y_score) -> dict:
     out = {}
-    for col in targets:
-        s = pd.to_numeric(df[col], errors="coerce").dropna()
-        out[col] = float(s.mean()) if len(s) else None
+    try:
+        out["pr_auc"] = float(average_precision_score(y_true, y_score))
+    except Exception:
+        out["pr_auc"] = None
+
+    try:
+        out["roc_auc"] = float(roc_auc_score(y_true, y_score))
+    except Exception:
+        out["roc_auc"] = None
+
+    try:
+        out["brier_score"] = float(brier_score_loss(y_true, y_score))
+    except Exception:
+        out["brier_score"] = None
+
     return out
 
 
@@ -41,16 +58,17 @@ def main():
     test_end = pd.Timestamp(cfg["split"]["test_end"], tz="UTC")
 
     df = pd.read_csv(dataset_path, usecols=[time_col] + targets, low_memory=False)
-    df[time_col] = pd.to_datetime(df[time_col], errors="coerce", utc=True)
+    df[time_col] = pd.to_datetime(
+        df[time_col],
+        format="mixed",
+        errors="coerce",
+        utc=True,
+    )
     df = df.dropna(subset=[time_col]).copy()
 
     train = df[df[time_col] <= train_end].copy()
     val = df[(df[time_col] > train_end) & (df[time_col] <= val_end)].copy()
     test = df[(df[time_col] > val_end) & (df[time_col] <= test_end)].copy()
-
-    train_rates = compute_rates(train, targets)
-    val_rates = compute_rates(val, targets)
-    test_rates = compute_rates(test, targets)
 
     tracking_uri = cfg["tracking_uri"]
     experiment_name = cfg["experiment_name"]
@@ -76,29 +94,48 @@ def main():
                 "dataset_path": str(dataset_path),
                 "time_column": time_col,
                 "target_columns": ",".join(targets),
+                "benchmark_path": cfg["_benchmark_path"],
             }
         )
 
         metrics = {}
+        report = {
+            "split_sizes": {
+                "train": int(len(train)),
+                "validation": int(len(val)),
+                "test": int(len(test)),
+            },
+            "targets": {},
+        }
+
         for target in targets:
-            metrics[f"{target}_train_positive_rate"] = train_rates[target]
-            metrics[f"{target}_validation_positive_rate"] = val_rates[target]
-            metrics[f"{target}_test_positive_rate"] = test_rates[target]
+            y_train = pd.to_numeric(train[target], errors="coerce").dropna().astype(int)
+            y_val = pd.to_numeric(val[target], errors="coerce").dropna().astype(int)
+            y_test = pd.to_numeric(test[target], errors="coerce").dropna().astype(int)
+
+            train_positive_rate = float(y_train.mean())
+            val_score = np.full(shape=len(y_val), fill_value=train_positive_rate, dtype=float)
+            test_score = np.full(shape=len(y_test), fill_value=train_positive_rate, dtype=float)
+
+            val_metrics = compute_metrics(y_val, val_score)
+            test_metrics = compute_metrics(y_test, test_score)
+
+            metrics[f"{target}_train_positive_rate"] = train_positive_rate
+            for k, v in val_metrics.items():
+                if v is not None:
+                    metrics[f"{target}_val_{k}"] = v
+            for k, v in test_metrics.items():
+                if v is not None:
+                    metrics[f"{target}_test_{k}"] = v
+
+            report["targets"][target] = {
+                "train_positive_rate": train_positive_rate,
+                "val_metrics": val_metrics,
+                "test_metrics": test_metrics,
+            }
 
         mlflow.log_metrics(metrics)
-        mlflow.log_dict(
-            {
-                "train_positive_rates": train_rates,
-                "validation_positive_rates": val_rates,
-                "test_positive_rates": test_rates,
-                "split_sizes": {
-                    "train": int(len(train)),
-                    "validation": int(len(val)),
-                    "test": int(len(test)),
-                },
-            },
-            "naive_baseline_report.json",
-        )
+        mlflow.log_dict(report, "naive_baseline_report.json")
 
         print("Naive baseline logged successfully.")
         print(f"tracking_uri={tracking_uri}")
