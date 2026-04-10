@@ -23,7 +23,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from catalog_manager import catalog
+from .catalog_manager import catalog
 
 logger = logging.getLogger(__name__)
 
