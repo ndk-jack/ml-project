@@ -1,0 +1,26 @@
+benchmark_id: benchmark_v2
+
+targets:
+  label_7d:
+    learning_rate: 0.0472
+    num_leaves: 71
+    min_child_samples: 91
+    feature_fraction: 0.7007
+    bagging_fraction: 0.9289
+    bagging_freq: 3
+    lambda_l1: 0.039
+    lambda_l2: 0.034
+    max_depth: 5
+    n_estimators: 139
+
+  label_30d:
+    learning_rate: 0.0235
+    num_leaves: 108
+    min_child_samples: 86
+    feature_fraction: 0.6447
+    bagging_fraction: 0.9338
+    bagging_freq: 8
+    lambda_l1: 0.116
+    lambda_l2: 9.45
+    max_depth: 6
+    n_estimators: 505

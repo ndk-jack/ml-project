@@ -201,8 +201,12 @@ def _score_event(
     if len(_scored_cache) > MAX_CACHE_SIZE:
         _scored_cache.pop(0)
 
-    # Persist to Supabase (fire-and-forget — never blocks the response)
+    # Persist to Supabase (fire-and-forget style)
     database.insert_scored_event(result)
+
+    prediction_id = database.insert_prediction_log(result)
+    if prediction_id:
+        database.insert_prediction_outcome_stub(prediction_id, result)
 
     return result
 

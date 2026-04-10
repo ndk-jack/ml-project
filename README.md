@@ -93,6 +93,35 @@ Pre-2000 events have NaN for all M2 features (intentional — no catalog complet
 9. `elapsed_since_last_s` — time since previous event
 10. `dist_to_nearest_fault_km` — proximity to mapped faults
 
+## ML Experiment Baseline
+
+| Property | Value |
+|----------|-------|
+| Official benchmark | **benchmark_v2** |
+| Dataset | `dataset_v5_dedup` (`data/features_clean/dataset_v5_dedup.csv`) |
+| Active targets | `label_7d`, `label_30d` |
+| Feature set | `candidate_feature_set_v1` (22 features) |
+| Best params | `experiments/config/best_params_v2.yaml` (Optuna-tuned) |
+| MLflow backend | SQLite — `mlflow.db` at project root |
+| Tracking URI | `sqlite:////path/to/ml-project/mlflow.db` |
+
+**All new ML experiments must start from benchmark_v2.** Use `--config experiments/config/benchmark_v2.yaml` when running any experiment script.
+
+```bash
+# View all runs
+source .venv/bin/activate
+mlflow ui --backend-store-uri sqlite:////$(pwd)/mlflow.db --host 127.0.0.1 --port 5001
+```
+
+### benchmark_v2 results (compact model — 22 features + Optuna params)
+
+| Target | Val PR-AUC | Test PR-AUC | Test ROC-AUC |
+|--------|-----------|------------|-------------|
+| `label_7d`  | 0.7043 | **0.7896** | 0.8650 |
+| `label_30d` | 0.8023 | **0.8546** | 0.8412 |
+
+These match the full-feature model within 0.001–0.002, with 22 features instead of 70+.
+
 ## Reproduce
 
 ```bash
@@ -229,3 +258,11 @@ ml-project/
 **Why separate M≥2 features?** The M≥2 catalog only covers 2000–2026. Mixing it with M≥4 features (1900–2026) in the same time windows creates a completeness bias: pre-2000 events appear artificially quiescent. The two-track approach (coherent + M2-enriched) corrects this by assigning NaN to pre-2000 events for all M2 features.
 
 **Why background_rate_yr is #1?** It encodes the tectonic regime of the zone in a single number. A zone with 50 events/year has fundamentally different aftershock statistics than one with 2 events/year. Normalizing by this baseline removes the regional bias and lets the model focus on anomalies.
+
+## Repo scope
+- This repository owns backend, ML pipelines, jobs, and Supabase integration.
+- Frontend lives in https://github.com/ndk-jack/quakehub-live
+
+## Repo scope
+- This repository owns backend, ML pipelines, jobs, and Supabase integration.
+- Frontend lives in https://github.com/ndk-jack/quakehub-live

@@ -1,0 +1,31 @@
+dataset_source: data/features/dataset_v3.csv
+dataset_output: data/features_clean/dataset_v5_dedup.csv
+time_column: datetime
+target_columns:
+  - label_7d
+  - label_30d
+
+drop_columns_exact:
+  - label_365d
+  - rate_1d
+  - rate_7d
+  - rate_30d
+  - rate_90d
+  - ref_lat
+  - ref_lon
+  - moment_1d
+  - moment_7d
+  - moment_30d
+  - moment_90d
+
+drop_if_constant: true
+drop_if_all_null: true
+drop_non_numeric_features_except:
+  - datetime
+
+notes:
+  - Build a deduplicated benchmark dataset for 7d and 30d only.
+  - Remove perfectly redundant columns identified by the audit.
+  - Keep count_* over rate_*.
+  - Keep latitude/longitude over ref_lat/ref_lon.
+  - Keep energy_* over moment_*.
