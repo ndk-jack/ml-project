@@ -19,7 +19,7 @@ def positive_rate(series):
 def main():
     usecols = [TIME_COL] + TARGETS
     df = pd.read_csv(DATASET_PATH, usecols=usecols, low_memory=False)
-    df[TIME_COL] = pd.to_datetime(df[TIME_COL], errors="coerce", utc=True)
+    df[TIME_COL] = pd.to_datetime(df[TIME_COL], format="mixed", errors="coerce", utc=True)
     df = df.dropna(subset=[TIME_COL]).copy()
 
     print("dataset_path", DATASET_PATH)
