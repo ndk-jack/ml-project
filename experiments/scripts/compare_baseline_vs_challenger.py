@@ -3,7 +3,9 @@ from mlflow.tracking import MlflowClient
 
 from config import load_benchmark_config
 
-TRACKING_URI = "sqlite:////Users/nazlidecker/ml-project/mlflow.db"
+from pathlib import Path as _Path
+_PROJECT_ROOT = _Path(__file__).resolve().parents[2]
+TRACKING_URI = f"sqlite:////{_PROJECT_ROOT / 'mlflow.db'}"
 EXPERIMENT_NAME = "earthquake-forecasting"
 
 

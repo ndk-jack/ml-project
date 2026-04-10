@@ -1,12 +1,14 @@
 from pathlib import Path
-import numpy as np
 import pandas as pd
 
-DATASET_PATH = Path("/Users/nazlidecker/ml-project/data/features_clean/dataset_v5_dedup.csv")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DATASET_PATH = PROJECT_ROOT / "data" / "features_clean" / "dataset_v5_dedup.csv"
 EXCLUDE = {"datetime", "label_7d", "label_30d"}
 
 def main():
     df = pd.read_csv(DATASET_PATH, low_memory=False)
+    print("dataset_path", DATASET_PATH)
+
     feature_cols = [c for c in df.columns if c not in EXCLUDE and pd.api.types.is_numeric_dtype(df[c])]
     sample = df[feature_cols].sample(min(20000, len(df)), random_state=42)
     corr = sample.corr(numeric_only=True).abs()

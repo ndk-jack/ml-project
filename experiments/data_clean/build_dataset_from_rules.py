@@ -4,16 +4,25 @@ import sys
 import pandas as pd
 import yaml
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def resolve_path(value: str) -> Path:
+    p = Path(value)
+    if p.is_absolute():
+        return p
+    return (PROJECT_ROOT / p).resolve()
+
 
 def main():
     if len(sys.argv) != 2:
         raise SystemExit("Usage: python build_dataset_from_rules.py <rules_yaml_path>")
 
-    rules_path = Path(sys.argv[1])
+    rules_path = Path(sys.argv[1]).resolve()
     rules = yaml.safe_load(rules_path.read_text())
 
-    src = Path(rules["dataset_source"])
-    dst = Path(rules["dataset_output"])
+    src = resolve_path(rules["dataset_source"])
+    dst = resolve_path(rules["dataset_output"])
     dst.parent.mkdir(parents=True, exist_ok=True)
 
     df = pd.read_csv(src, low_memory=False)
@@ -52,7 +61,6 @@ def main():
     df = df[keep].copy()
     df = df.dropna(subset=[time_col])
 
-    dst.write_text("")  # ensure path exists if interrupted before csv write
     df.to_csv(dst, index=False)
 
     manifest = {
@@ -70,10 +78,8 @@ def main():
         "target_columns": target_cols,
     }
 
-    manifest_path = (
-        Path("/Users/nazlidecker/ml-project/experiments/data_clean/manifests")
-        / f"{dst.stem}_manifest.json"
-    )
+    manifest_path = PROJECT_ROOT / "experiments" / "data_clean" / "manifests" / f"{dst.stem}_manifest.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(manifest, indent=2))
 
     print("dataset_output", dst)

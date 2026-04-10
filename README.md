@@ -110,7 +110,7 @@ Pre-2000 events have NaN for all M2 features (intentional — no catalog complet
 ```bash
 # View all runs
 source .venv/bin/activate
-mlflow ui --backend-store-uri sqlite:////Users/nazlidecker/ml-project/mlflow.db --host 127.0.0.1 --port 5001
+mlflow ui --backend-store-uri sqlite:////$(pwd)/mlflow.db --host 127.0.0.1 --port 5001
 ```
 
 ### benchmark_v2 results (compact model — 22 features + Optuna params)

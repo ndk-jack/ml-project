@@ -1,7 +1,8 @@
 from pathlib import Path
 import pandas as pd
 
-DATASET_PATH = Path("/Users/nazlidecker/ml-project/data/features_clean/dataset_v5_dedup.csv")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DATASET_PATH = PROJECT_ROOT / "data" / "features_clean" / "dataset_v5_dedup.csv"
 TIME_COL = "datetime"
 TARGETS = ["label_7d", "label_30d"]
 

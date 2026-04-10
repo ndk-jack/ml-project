@@ -1,7 +1,8 @@
 from pathlib import Path
 import pandas as pd
 
-DATASET_PATH = Path("/Users/nazlidecker/ml-project/data/features/dataset_v3.csv")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DATASET_PATH = PROJECT_ROOT / "data" / "features" / "dataset_v3.csv"
 
 def main():
     df = pd.read_csv(DATASET_PATH, nrows=5000, low_memory=False)
@@ -23,7 +24,7 @@ def main():
             print(c)
 
     print("\nnull_rate_top20")
-    nulls = df.isna().mean().sort_values(ascending=False).head(20)
+    nulls = (df.isna().mean().sort_values(ascending=False).head(20))
     for k, v in nulls.items():
         print(f"{k}: {v:.4f}")
 

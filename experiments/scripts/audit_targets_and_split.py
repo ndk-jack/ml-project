@@ -1,7 +1,8 @@
 from pathlib import Path
 import pandas as pd
 
-DATASET_PATH = Path("/Users/nazlidecker/ml-project/data/features/dataset_v3.csv")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DATASET_PATH = PROJECT_ROOT / "data" / "features" / "dataset_v3.csv"
 
 TRAIN_END = "2018-12-31"
 VAL_END = "2021-12-31"
