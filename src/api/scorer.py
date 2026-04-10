@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import lightgbm as lgb
 
-from feature_engine import FEATURE_COLS
+from .feature_engine import FEATURE_COLS
 
 logger = logging.getLogger(__name__)
 

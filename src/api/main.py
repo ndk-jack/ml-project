@@ -20,7 +20,6 @@ Run:
 """
 
 import logging
-import sys
 import threading
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
@@ -35,13 +34,11 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-# Allow imports from src/api when running as a module
-sys.path.insert(0, str(__file__).replace("/main.py", ""))
-
-from catalog_manager import catalog
-from feature_engine import compute_features, features_to_series
-from scorer import scorer
-import database
+from .catalog_manager import catalog
+from .feature_engine import compute_features, features_to_series
+from .scorer import scorer
+from .router_public import router as public_router
+from . import database
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -117,6 +114,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+app.include_router(public_router)
 
 app.add_middleware(
     CORSMiddleware,
