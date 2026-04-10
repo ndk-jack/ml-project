@@ -20,7 +20,10 @@ Table expected in Supabase (run migrations/001_scored_events.sql first):
 
 import logging
 import os
+from datetime import datetime, timedelta, timezone
 from typing import Optional
+
+from .serving_metadata import get_serving_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +83,20 @@ def _get_client():
     return _client
 
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _normalize_features_used(value):
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, dict):
+        return len(value)
+    if isinstance(value, (list, tuple, set)):
+        return len(value)
+    return None
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def insert_scored_event(result: dict) -> bool:
@@ -113,7 +130,7 @@ def insert_scored_event(result: dict) -> bool:
             "risk_7d":       result.get("risk_7d"),
             "risk_30d":      result.get("risk_30d"),
             "risk_365d":     result.get("risk_365d"),
-            "features_used": result.get("features_used"),
+            "features_used": _normalize_features_used(result.get("features_used")),
             "scored_at":     result.get("scored_at"),
         }
 
@@ -134,6 +151,89 @@ def insert_scored_event(result: dict) -> bool:
 
     except Exception as e:
         logger.error(f"Failed to persist event to Supabase: {e}")
+        return False
+
+
+def insert_prediction_log(result: dict) -> str | None:
+    """
+    Append-only log of served predictions.
+    Returns prediction_id on success, None on failure.
+    """
+    if not _is_enabled():
+        return None
+
+    try:
+        client = _get_client()
+        meta = get_serving_metadata()
+
+        row = {
+            "event_id": result.get("event_id"),
+            "event_datetime": result.get("datetime"),
+            "latitude": result.get("latitude"),
+            "longitude": result.get("longitude"),
+            "depth": result.get("depth"),
+            "magnitude": result.get("magnitude"),
+            "prob_7d": result.get("prob_7d"),
+            "prob_30d": result.get("prob_30d"),
+            "risk_7d": result.get("risk_7d"),
+            "risk_30d": result.get("risk_30d"),
+            "features_used": _normalize_features_used(result.get("features_used")),
+            "scored_at": result.get("scored_at"),
+            "model_version": meta["model_version"],
+            "benchmark_id": meta["benchmark_id"],
+            "feature_set_version": meta["feature_set_version"],
+            "dataset_version": meta["dataset_version"],
+            "mlflow_run_id": meta["mlflow_run_id"],
+        }
+
+        response = client.table("prediction_log").insert(row).execute()
+
+        if hasattr(response, "data") and response.data:
+            prediction_id = response.data[0].get("prediction_id")
+            logger.info(f"Prediction log inserted for event {row['event_id']}.")
+            return prediction_id
+
+        logger.warning(f"Prediction log insert returned no data: {response}")
+        return None
+
+    except Exception as e:
+        logger.error(f"Failed to insert prediction_log: {e}")
+        return None
+
+
+def insert_prediction_outcome_stub(prediction_id: str, result: dict) -> bool:
+    """
+    Create the delayed-label stub for 7d / 30d evaluation.
+    """
+    if not _is_enabled():
+        return False
+
+    try:
+        client = _get_client()
+
+        event_dt = datetime.fromisoformat(result["datetime"].replace("Z", "+00:00"))
+        row = {
+            "prediction_id": prediction_id,
+            "event_id": result.get("event_id"),
+            "event_datetime": result.get("datetime"),
+            "latitude": result.get("latitude"),
+            "longitude": result.get("longitude"),
+            "magnitude": result.get("magnitude"),
+            "maturity_7d_at": (event_dt + timedelta(days=7)).astimezone(timezone.utc).isoformat(),
+            "maturity_30d_at": (event_dt + timedelta(days=30)).astimezone(timezone.utc).isoformat(),
+        }
+
+        response = client.table("prediction_outcomes").upsert(row, on_conflict="prediction_id").execute()
+
+        if hasattr(response, "data"):
+            logger.info(f"Prediction outcome stub inserted for event {row['event_id']}.")
+            return True
+
+        logger.warning(f"Prediction outcome stub upsert returned no data: {response}")
+        return False
+
+    except Exception as e:
+        logger.error(f"Failed to insert prediction_outcome stub: {e}")
         return False
 
 
