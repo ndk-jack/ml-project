@@ -1,15 +1,15 @@
 benchmark_id: benchmark_v2
 experiment_name: earthquake-forecasting
-tracking_uri: sqlite:////Users/nazlidecker/ml-project/mlflow.db
+tracking_db_path: mlflow.db
 
 champion:
   tag: v0.2.0-prod-stable
   model_family: lightgbm
-  feature_set_version: feature_set_v5_dedup_candidate
+  feature_set_version: candidate_feature_set_v1
   split_version: split_temporal_v1
 
 dataset:
-  path: /Users/nazlidecker/ml-project/data/features_clean/dataset_v5_dedup.csv
+  path: data/features_clean/dataset_v5_dedup.csv
   version: dataset_v5_dedup
   time_column: datetime
   target_columns:

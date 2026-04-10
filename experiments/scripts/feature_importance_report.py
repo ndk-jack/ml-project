@@ -9,7 +9,7 @@ import pandas as pd
 from config import load_benchmark_config
 
 
-PROJECT_ROOT = Path("/Users/nazlidecker/ml-project")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def get_git_sha() -> str:

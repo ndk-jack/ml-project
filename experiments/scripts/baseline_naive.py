@@ -9,7 +9,7 @@ from sklearn.metrics import average_precision_score, roc_auc_score, brier_score_
 from config import load_benchmark_config
 
 
-PROJECT_ROOT = Path("/Users/nazlidecker/ml-project")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def get_git_sha(project_root: Path) -> str:
@@ -48,7 +48,7 @@ def compute_metrics(y_true, y_score) -> dict:
 
 def main():
     cfg = load_benchmark_config()
-    project_root = Path("/Users/nazlidecker/ml-project")
+    project_root = PROJECT_ROOT
     dataset_path = Path(cfg["dataset"]["path"])
     time_col = cfg["dataset"]["time_column"]
     targets = cfg["dataset"]["target_columns"]

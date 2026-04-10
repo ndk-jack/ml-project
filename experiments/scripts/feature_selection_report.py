@@ -2,7 +2,7 @@ from pathlib import Path
 import json
 from collections import defaultdict
 
-PROJECT_ROOT = Path("/Users/nazlidecker/ml-project")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REPORTS_DIR = PROJECT_ROOT / "experiments" / "reports"
 
 INPUT_FILES = {

@@ -93,6 +93,35 @@ Pre-2000 events have NaN for all M2 features (intentional — no catalog complet
 9. `elapsed_since_last_s` — time since previous event
 10. `dist_to_nearest_fault_km` — proximity to mapped faults
 
+## ML Experiment Baseline
+
+| Property | Value |
+|----------|-------|
+| Official benchmark | **benchmark_v2** |
+| Dataset | `dataset_v5_dedup` (`data/features_clean/dataset_v5_dedup.csv`) |
+| Active targets | `label_7d`, `label_30d` |
+| Feature set | `candidate_feature_set_v1` (22 features) |
+| Best params | `experiments/config/best_params_v2.yaml` (Optuna-tuned) |
+| MLflow backend | SQLite — `mlflow.db` at project root |
+| Tracking URI | `sqlite:////path/to/ml-project/mlflow.db` |
+
+**All new ML experiments must start from benchmark_v2.** Use `--config experiments/config/benchmark_v2.yaml` when running any experiment script.
+
+```bash
+# View all runs
+source .venv/bin/activate
+mlflow ui --backend-store-uri sqlite:////Users/nazlidecker/ml-project/mlflow.db --host 127.0.0.1 --port 5001
+```
+
+### benchmark_v2 results (compact model — 22 features + Optuna params)
+
+| Target | Val PR-AUC | Test PR-AUC | Test ROC-AUC |
+|--------|-----------|------------|-------------|
+| `label_7d`  | 0.7043 | **0.7896** | 0.8650 |
+| `label_30d` | 0.8023 | **0.8546** | 0.8412 |
+
+These match the full-feature model within 0.001–0.002, with 22 features instead of 70+.
+
 ## Reproduce
 
 ```bash

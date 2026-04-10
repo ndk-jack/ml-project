@@ -11,7 +11,7 @@ from sklearn.metrics import average_precision_score, roc_auc_score, brier_score_
 from config import load_benchmark_config
 
 
-PROJECT_ROOT = Path("/Users/nazlidecker/ml-project")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BEST_PARAMS_PATH = PROJECT_ROOT / "experiments" / "config" / "best_params_v2.yaml"
 FEATURE_SELECTION_REPORT = PROJECT_ROOT / "experiments" / "reports" / "feature_selection" / "feature_selection_report_v1.json"
 
