@@ -4,25 +4,49 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-### Changed
-- Introduced `benchmark_v2` based on `dataset_v5_dedup.csv` for cleaner 7d / 30d benchmarking.
-- Removed `label_365d` from the active benchmark scope because the target is heavily skewed toward the positive class and is less informative for early model iteration.
-- Deduplicated perfectly redundant features in the new candidate dataset (`rate_*`, `ref_lat/ref_lon`, `moment_*` removed in favor of simpler equivalents).
+## [Unreleased]
 
 ### Added
-- Added dataset cleaning rules and manifests for `dataset_v5_dedup`.
-- Added comparable naive baseline metrics for benchmark evaluation.
-- Added baseline vs challenger comparison script for MLflow runs.
+- Added feedback loop MVP with `prediction_log`, `prediction_outcomes`, and delayed evaluation snapshots.
+- Added public API v1 endpoints for scored events:
+  - `GET /api/v1/health`
+  - `GET /api/v1/scored-events`
+  - `GET /api/v1/scored-events/{event_id}`
+- Added structured risk codes to the public API:
+  - `risk_7d_code`
+  - `risk_30d_code`
+  - `risk_365d_code`
+- Added scheduled auto-scoring job to keep `scored_events` fresh in production.
+- Added serving metadata persistence on newly scored `scored_events` rows:
+  - `model_version`
+  - `benchmark_id`
+  - `feature_set_version`
+  - `dataset_version`
+  - `mlflow_run_id`
 
 ### Changed
-- Completed a first Optuna pass on `benchmark_v2` for `label_7d` and `label_30d`.
-- Kept `label_365d` out of the active benchmark scope.
-- Observed only marginal tuning gains versus the simple benchmarked LightGBM challenger, especially for `label_7d`.
+- Promoted `scored_events` as the product-facing read model for the frontend dashboard.
+- Kept `prediction_log` as append-only internal truth for served predictions.
+- Kept `prediction_outcomes` as delayed-label storage for 7d / 30d evaluation.
+- Hardened the public scored-events feed against legacy invalid rows.
+- Added `meta.rejected` to the public scored-events response.
+- Standardized frontend consumption on the public API instead of direct dashboard reads from Supabase.
 
-### Notes
-- `label_7d` appears close to a performance ceiling with the current feature set.
-- `label_30d` benefits slightly from tuned hyperparameters, but gains remain modest.
-- Next optimization work should focus on feature quality and feature selection rather than larger Optuna budgets.
+### Fixed
+- Fixed Railway deployment packaging by aligning API package-relative imports.
+- Fixed scheduled auto-scoring idempotence for prediction logging.
+- Fixed stale dashboard feed by introducing scheduled auto-scoring in addition to rolling catalog refresh.
+- Fixed frontend event identity by aligning the dashboard on `event_id`.
+
+### Infra
+- Corrected Railway service source to deploy from `main` instead of `feat/public-api-contract-v1`.
+- Confirmed production scheduler registration for both:
+  - `CatalogManager.refresh_rolling`
+  - `auto_score`
+
+### Docs
+- Consolidated README to reflect the real production architecture, public API, feedback loop, and scheduled scoring behavior.
+- Clarified backend / frontend repository ownership.
 
 ### Added
 -
@@ -62,5 +86,3 @@ All notable changes to this project are documented in this file.
 
 ### Docs
 - Updated README, CLAUDE, and API docstrings for Python 3.11 and Railway runtime artifacts.
-
-- 2026-04-10: feedback loop MVP merged on feat/data-clean-rebuild-v4 (prediction_log, prediction_outcomes, batch delayed evaluation).
