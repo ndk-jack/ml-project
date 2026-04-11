@@ -26,21 +26,26 @@ def api_v1_list_scored_events(limit: int = Query(50, ge=1, le=200)):
     raw_rows = database.list_scored_events_public(limit=limit)
 
     valid_rows = []
+    rejected = 0
     for row in raw_rows:
         try:
             valid_rows.append(ScoredEventPublic.model_validate(row))
-        except ValidationError as e:
-            logger.warning(
-                "Skipping invalid scored_event row event_id=%s validation_error=%s",
-                row.get("event_id"),
-                e,
-            )
+        except ValidationError:
+            rejected += 1
+
+    if rejected:
+        logger.warning(
+            "list_scored_events: rejected %d/%d rows that failed schema validation",
+            rejected,
+            len(raw_rows),
+        )
 
     return {
         "data": [row.model_dump(mode="json") for row in valid_rows],
         "meta": {
             "count": len(valid_rows),
             "limit": limit,
+            "rejected": rejected,
         },
     }
 
