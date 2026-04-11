@@ -111,27 +111,36 @@ def insert_scored_event(result: dict) -> bool:
         The full response dict from _score_event() in main.py.
         Expected keys: event_id, latitude, longitude, depth, magnitude,
                        datetime, prob_7d, prob_30d, prob_365d,
-                       risk_7d, risk_30d, risk_365d, features_used, scored_at
+                       risk_7d, risk_30d, risk_365d, features_used, scored_at.
+        Serving metadata (model_version, benchmark_id, feature_set_version,
+        dataset_version, mlflow_run_id) is injected automatically from
+        serving_metadata.py — not read from result.
     """
     if not _is_enabled():
         return False
 
     try:
+        meta = get_serving_metadata()
         row = {
-            "event_id":      result.get("event_id"),
-            "latitude":      result.get("latitude"),
-            "longitude":     result.get("longitude"),
-            "depth":         result.get("depth"),
-            "magnitude":     result.get("magnitude"),
-            "event_datetime": result.get("datetime"),
-            "prob_7d":       result.get("prob_7d"),
-            "prob_30d":      result.get("prob_30d"),
-            "prob_365d":     result.get("prob_365d"),
-            "risk_7d":       result.get("risk_7d"),
-            "risk_30d":      result.get("risk_30d"),
-            "risk_365d":     result.get("risk_365d"),
-            "features_used": _normalize_features_used(result.get("features_used")),
-            "scored_at":     result.get("scored_at"),
+            "event_id":            result.get("event_id"),
+            "latitude":            result.get("latitude"),
+            "longitude":           result.get("longitude"),
+            "depth":               result.get("depth"),
+            "magnitude":           result.get("magnitude"),
+            "event_datetime":      result.get("datetime"),
+            "prob_7d":             result.get("prob_7d"),
+            "prob_30d":            result.get("prob_30d"),
+            "prob_365d":           result.get("prob_365d"),
+            "risk_7d":             result.get("risk_7d"),
+            "risk_30d":            result.get("risk_30d"),
+            "risk_365d":           result.get("risk_365d"),
+            "features_used":       _normalize_features_used(result.get("features_used")),
+            "scored_at":           result.get("scored_at"),
+            "model_version":       meta["model_version"],
+            "benchmark_id":        meta["benchmark_id"],
+            "feature_set_version": meta["feature_set_version"],
+            "dataset_version":     meta["dataset_version"],
+            "mlflow_run_id":       meta["mlflow_run_id"],
         }
 
         client = _get_client()
