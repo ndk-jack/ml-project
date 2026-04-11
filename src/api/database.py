@@ -334,19 +334,35 @@ PUBLIC_SCORED_EVENT_COLUMNS = ",".join([
 ])
 
 
+_PUBLIC_REQUIRED_COLS = ("event_id", "event_datetime", "scored_at")
+
+
 def list_scored_events_public(limit: int = 50) -> list[dict]:
+    """
+    Return scored events for the public API feed.
+
+    Required fields for a row to be considered valid:
+      - event_id        (primary identifier)
+      - event_datetime  (event time)
+      - scored_at       (when the prediction was made)
+
+    Rows missing any of these are filtered at the DB level.
+    """
     if not _is_enabled():
         return []
 
     try:
         client = _get_client()
-        response = (
+        query = (
             client.table("scored_events")
             .select(PUBLIC_SCORED_EVENT_COLUMNS)
             .order("scored_at", desc=True)
             .limit(limit)
-            .execute()
         )
+        for col in _PUBLIC_REQUIRED_COLS:
+            query = query.not_.is_(col, "null")
+
+        response = query.execute()
         return response.data if hasattr(response, "data") and response.data else []
     except Exception as e:
         logger.error(f"Failed to list scored_events public: {e}")
