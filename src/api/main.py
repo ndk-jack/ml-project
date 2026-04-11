@@ -50,6 +50,7 @@ logger = logging.getLogger("api")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 POLL_INTERVAL_MINUTES = 5
+AUTO_SCORE_EVENTS_N = 20
 MAX_CACHE_SIZE        = 500    # keep last N scored events in memory
 USGS_LATEST_URL       = (
     "https://earthquake.usgs.gov/fdsnws/event/1/query"
@@ -84,8 +85,15 @@ async def lifespan(app: FastAPI):
         id="usgs_poll",
         max_instances=1,
     )
+    _scheduler.add_job(
+        _auto_score_job,
+        "interval",
+        minutes=POLL_INTERVAL_MINUTES,
+        id="auto_score",
+        max_instances=1,
+    )
     _scheduler.start()
-    logger.info(f"USGS polling started (every {POLL_INTERVAL_MINUTES} min)")
+    logger.info(f"USGS polling and auto-scoring started (every {POLL_INTERVAL_MINUTES} min)")
 
     # 4. Trigger one initial rolling refresh in background (non-blocking startup)
     threading.Thread(
@@ -238,6 +246,56 @@ def _fetch_usgs_latest(n: int) -> list[dict]:
             ).isoformat(),
         })
     return events
+
+
+def _auto_score_job() -> None:
+    """Scheduled job: fetch latest USGS events, score, and persist to Supabase."""
+    if not scorer.ready:
+        logger.warning("auto_score_job: scorer not ready, skipping.")
+        return
+
+    from .serving_metadata import get_serving_metadata
+    model_version = get_serving_metadata()["model_version"]
+
+    try:
+        url = USGS_LATEST_URL + f"&limit={AUTO_SCORE_EVENTS_N}"
+        resp = requests.get(url, timeout=15)
+        resp.raise_for_status()
+        features = resp.json().get("features", [])
+    except Exception as e:
+        logger.error(f"auto_score_job: USGS fetch failed: {e}")
+        return
+
+    scored = 0
+    for f in features:
+        p = f["properties"]
+        c = f["geometry"]["coordinates"]
+        if p.get("mag") is None:
+            continue
+        ev = {
+            "event_id":  f["id"],
+            "latitude":  c[1],
+            "longitude": c[0],
+            "depth":     c[2] if c[2] is not None else 33.0,
+            "magnitude": p["mag"],
+            "datetime":  datetime.fromtimestamp(
+                p["time"] / 1000, tz=timezone.utc
+            ).isoformat(),
+        }
+        try:
+            if database.prediction_log_exists_for_event_model(ev["event_id"], model_version):
+                continue
+
+            dt = _parse_dt(ev["datetime"])
+            _score_event(
+                ev["latitude"], ev["longitude"],
+                ev["depth"], ev["magnitude"], dt, ev["event_id"],
+            )
+            scored += 1
+        except Exception as e:
+            logger.error(f"auto_score_job: scoring failed for {ev['event_id']}: {e}")
+
+    logger.info(f"auto_score_job: scored and persisted {scored}/{len(features)} events.")
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────

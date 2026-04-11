@@ -280,6 +280,28 @@ def get_recent_events(
         return []
 
 
+def prediction_log_exists_for_event_model(event_id: str, model_version: str) -> bool:
+    """Return True if prediction_log already has an entry for (event_id, model_version)."""
+    if not _is_enabled():
+        return False
+
+    try:
+        client = _get_client()
+        response = (
+            client.table("prediction_log")
+            .select("prediction_id")
+            .eq("event_id", event_id)
+            .eq("model_version", model_version)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data if hasattr(response, "data") and response.data else []
+        return len(rows) > 0
+    except Exception as e:
+        logger.error(f"Failed to check prediction_log for {event_id}/{model_version}: {e}")
+        return False
+
+
 def is_ready() -> bool:
     """Return True if Supabase is configured and reachable."""
     if not _is_enabled():
