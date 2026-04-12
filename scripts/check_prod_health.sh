@@ -14,7 +14,7 @@ echo "== ml-data-plane ready =="
 curl -fsS https://ml-data-plane-production.up.railway.app/health/ready | python -m json.tool
 
 echo "== ml-data-plane scheduler metric =="
-curl -fsS https://ml-data-plane-production.up.railway.app/metrics | grep -E "^data_plane_scheduler_up "
+curl -fsS https://ml-data-plane-production.up.railway.app/metrics | grep -E '^data_plane_scheduler_up '
 
 echo "== ml-data-plane outcomes metrics =="
-curl -fsS https://ml-data-plane-production.up.railway.app/metrics | grep -E "^outcomes_(tasks_total|batches_total|usgs_calls_total|candidates_total|run_duration_seconds_count|run_duration_seconds_sum)"
+curl -fsS https://ml-data-plane-production.up.railway.app/metrics | grep -E '^outcomes_(tasks_total|batches_total|usgs_calls_total|candidates_total|run_duration_seconds_count|run_duration_seconds_sum)'
