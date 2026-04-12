@@ -177,9 +177,10 @@ def build_eval_snapshots(client):
 
 
 def main():
-    client = get_client()
-    evaluate_pending_outcomes(client)
-    build_eval_snapshots(client)
+    raise RuntimeError(
+        "Deprecated: delayed outcomes are now evaluated in ml-data-plane. "
+        "Run the outcomes_pipeline there instead."
+    )
 
 
 if __name__ == "__main__":

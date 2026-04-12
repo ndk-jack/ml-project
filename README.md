@@ -62,23 +62,30 @@ Behavior:
 - append-only for manual scoring endpoints
 - idempotence guard for scheduled auto-score on `(event_id, model_version)` at application level
 
-### `prediction_outcomes`
-Delayed ground-truth table.
+### `prediction_outcomes` (managed by ml-data-plane)
+Delayed ground-truth table — **not written by this service**.
 
-Purpose:
-- store matured 7d / 30d outcomes
-- support delayed evaluation
+Outcome evaluation (USGS follow-up lookup, labelling, quality checks, publishing) is fully
+handled by the `outcomes_pipeline` in `ml-data-plane`. This service no longer inserts stubs
+into `prediction_outcomes` at scoring time.
 
-Behavior:
-- one row per `prediction_id`
-- stores maturity timestamps and evaluated labels
-
-### `model_eval_snapshots`
+### `model_eval_snapshots` (managed by ml-data-plane)
 Aggregated evaluation snapshots built from prediction logs + delayed outcomes.
 
 Purpose:
 - monitor model quality over time
 - support champion / challenger comparisons later
+
+## Service responsibility split
+
+| Responsibility | Service |
+|---|---|
+| Real-time scoring | **ml-project** (this repo) |
+| `scored_events` upsert | **ml-project** |
+| `prediction_log` append | **ml-project** |
+| Delayed outcome evaluation | **ml-data-plane** (`outcomes_pipeline`) |
+| `prediction_outcomes` writes | **ml-data-plane** |
+| `model_eval_snapshots` writes | **ml-data-plane** |
 
 ## Public API
 

@@ -211,39 +211,12 @@ def insert_prediction_log(result: dict) -> str | None:
 
 
 def insert_prediction_outcome_stub(prediction_id: str, result: dict) -> bool:
-    """
-    Create the delayed-label stub for 7d / 30d evaluation.
-    """
-    if not _is_enabled():
-        return False
-
-    try:
-        client = _get_client()
-
-        event_dt = datetime.fromisoformat(result["datetime"].replace("Z", "+00:00"))
-        row = {
-            "prediction_id": prediction_id,
-            "event_id": result.get("event_id"),
-            "event_datetime": result.get("datetime"),
-            "latitude": result.get("latitude"),
-            "longitude": result.get("longitude"),
-            "magnitude": result.get("magnitude"),
-            "maturity_7d_at": (event_dt + timedelta(days=7)).astimezone(timezone.utc).isoformat(),
-            "maturity_30d_at": (event_dt + timedelta(days=30)).astimezone(timezone.utc).isoformat(),
-        }
-
-        response = client.table("prediction_outcomes").upsert(row, on_conflict="prediction_id").execute()
-
-        if hasattr(response, "data"):
-            logger.info(f"Prediction outcome stub inserted for event {row['event_id']}.")
-            return True
-
-        logger.warning(f"Prediction outcome stub upsert returned no data: {response}")
-        return False
-
-    except Exception as e:
-        logger.error(f"Failed to insert prediction_outcome stub: {e}")
-        return False
+    """Deprecated: delayed outcomes are now evaluated in ml-data-plane."""
+    logger.warning(
+        "insert_prediction_outcome_stub is deprecated: "
+        "delayed outcomes now live in ml-data-plane"
+    )
+    return False
 
 
 def get_recent_events(
