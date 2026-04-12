@@ -211,9 +211,7 @@ def _score_event(
     # Persist to Supabase (fire-and-forget style)
     database.insert_scored_event(result)
 
-    prediction_id = database.insert_prediction_log(result)
-    if prediction_id:
-        database.insert_prediction_outcome_stub(prediction_id, result)
+    database.insert_prediction_log(result)
 
     return result
 

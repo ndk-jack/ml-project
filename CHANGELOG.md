@@ -4,7 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-## [Unreleased]
+### Changed
+- Removed `insert_prediction_outcome_stub` call from the scoring path in `main.py`. Delayed outcome evaluation is now the sole responsibility of `ml-data-plane` (`outcomes_pipeline`).
+- Deprecated `insert_prediction_outcome_stub` in `database.py` — logs a warning and returns `False`. Function kept for import compatibility; safe to remove after confirming no external callers.
+- `evaluate_prediction_outcomes.py` now raises `RuntimeError` immediately to prevent accidental runs of the old evaluation job.
+
+---
 
 ### Added
 - Added feedback loop MVP with `prediction_log`, `prediction_outcomes`, and delayed evaluation snapshots.
