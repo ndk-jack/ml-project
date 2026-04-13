@@ -91,3 +91,6 @@ All notable changes to this project are documented in this file.
 
 ### Docs
 - Updated README, CLAUDE, and API docstrings for Python 3.11 and Railway runtime artifacts.
+
+## 2026-04-13
+- documented minimal production monitoring contract in docs/monitoring_minimal_contract.md

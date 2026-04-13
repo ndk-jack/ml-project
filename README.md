@@ -264,3 +264,5 @@ This repository owns:
 
 Frontend lives in:
 - https://github.com/ndk-jack/quakehub-live
+## Monitoring
+See docs/monitoring_minimal_contract.md for the current production monitoring contract.
