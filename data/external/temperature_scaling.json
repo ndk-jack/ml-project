@@ -1,0 +1,10 @@
+{
+  "version": "mlp_v1",
+  "method": "temperature_scaling",
+  "formula": "p_cal = sigmoid(logit(p_raw) / T)",
+  "temperatures": {
+    "label_7d": 0.6663,
+    "label_30d": 1.0357
+  },
+  "exported_at": "2026-04-17T09:17:37.247709+00:00"
+}

@@ -1,232 +1,173 @@
 """
-scorer.py — Load trained LightGBM models and score a feature vector.
+scorer.py — Hybrid MLP/LightGBM scorer.
 
-Responsibilities:
-  - Load lgbm_7d.txt, lgbm_30d.txt, lgbm_365d.txt at startup
-  - Load training medians for NaN imputation (from dataset_v3.csv stats)
-  - Expose score(feats_series) → dict with prob_7d, prob_30d, prob_365d
-  - Compute a human-readable risk level per horizon
+- label_7d  : MLP Keras + temperature scaling (T=0.6663)
+- label_30d : MLP Keras + temperature scaling (T=1.0357)
+- label_365d: LightGBM (conservé, pas de MLP champion pour ce horizon)
+
+Pipeline d'inférence MLP :
+  feats_s → sélection 67 features → imputer.transform() → scaler.transform()
+          → keras.predict() → temperature_scale() → prob calibrée
+
+Interface identique à l'ancien scorer : drop-in replacement.
 """
 
 import json
 import logging
+import math
+import os
 from pathlib import Path
 from typing import Optional
 
+import joblib
 import numpy as np
 import pandas as pd
-import lightgbm as lgb
-
-from .feature_engine import FEATURE_COLS
 
 logger = logging.getLogger(__name__)
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
-PROJECT_ROOT       = Path(__file__).resolve().parents[2]
-MODELS_DIR         = PROJECT_ROOT / "models"
-FEATURES_DIR       = PROJECT_ROOT / "data" / "features"
-RUNTIME_ASSETS_DIR = PROJECT_ROOT / "data" / "external"
-
-MODEL_FILES = {
-    "7d":   MODELS_DIR / "lgbm_7d.txt",
-    "30d":  MODELS_DIR / "lgbm_30d.txt",
-    "365d": MODELS_DIR / "lgbm_365d.txt",
-}
-
-# Fallback medians (from training dataset_v3) — used if dataset_v3.csv unavailable
-FALLBACK_MEDIANS = {
-    "magnitude": 4.6, "depth": 33.0, "elapsed_since_last_s": 86400.0,
-    "dist_to_plate_boundary_km": 150.0,
-    "count_1d": 0.0, "rate_1d": 0.0, "energy_1d": 0.0, "moment_1d": 0.0,
-    "b_value_1d": 1.0, "mag_mean_1d": 4.5, "mag_max_1d": 4.5,
-    "depth_mean_1d": 33.0, "depth_std_1d": 0.0,
-    "count_7d": 2.0, "rate_7d": 0.29, "energy_7d": 1e6, "moment_7d": 1e15,
-    "b_value_7d": 1.0, "mag_mean_7d": 4.5, "mag_max_7d": 4.8,
-    "depth_mean_7d": 33.0, "depth_std_7d": 10.0,
-    "count_30d": 8.0, "rate_30d": 0.27, "energy_30d": 5e6, "moment_30d": 5e15,
-    "b_value_30d": 1.0, "mag_mean_30d": 4.5, "mag_max_30d": 5.0,
-    "depth_mean_30d": 33.0, "depth_std_30d": 12.0,
-    "count_90d": 20.0, "rate_90d": 0.22, "energy_90d": 1e7, "moment_90d": 1e16,
-    "b_value_90d": 1.0, "mag_mean_90d": 4.5, "mag_max_90d": 5.2,
-    "depth_mean_90d": 35.0, "depth_std_90d": 15.0,
-    "count_7d_m2": 5.0, "energy_7d_m2": 2e6, "b_value_7d_m2": 1.0,
-    "count_30d_m2": 20.0, "energy_30d_m2": 8e6, "b_value_30d_m2": 1.0,
-    "count_90d_m2": 60.0, "energy_90d_m2": 2e7, "b_value_90d_m2": 1.0,
-    "accel_count": 1.0, "accel_energy": 1.0, "mag_excess": 0.0,
-    "dist_to_nearest_fault_km": 85.0, "fault_slip_type_enc": 0,
-    "stress_regime_enc": 1, "shmax_sin": 0.0, "shmax_cos": 1.0,
-    "wsm_dist_km": 150.0, "background_rate_yr": 12.6, "normalized_rate_30d": 5.0,
-}
-
-# Risk thresholds — tuned to be informative for non-technical users
-RISK_LEVELS = [
-    (0.70, "🔴 Très élevé"),
-    (0.50, "🟠 Élevé"),
-    (0.35, "🟡 Modéré"),
-    (0.20, "🟢 Faible"),
-    (0.00, "⚪ Très faible"),
-]
+_DATA_DIR          = Path(os.getenv("MODEL_DATA_DIR",    "data/external"))
+MLP_7D_PATH        = Path(os.getenv("MLP_7D_PATH",       str(_DATA_DIR / "mlp_full_medium__label_7d.keras")))
+MLP_30D_PATH       = Path(os.getenv("MLP_30D_PATH",      str(_DATA_DIR / "mlp_full_medium__label_30d.keras")))
+PREP_7D_PATH       = Path(os.getenv("PREP_7D_PATH",      str(_DATA_DIR / "mlp_full_medium__label_7d__preprocessor.joblib")))
+PREP_30D_PATH      = Path(os.getenv("PREP_30D_PATH",     str(_DATA_DIR / "mlp_full_medium__label_30d__preprocessor.joblib")))
+LGBM_365D_PATH     = Path(os.getenv("LGBM_365D_PATH",    str(_DATA_DIR / "lgbm_365d.txt")))
+FEATURES_META_PATH = Path(os.getenv("FEATURES_META_PATH",str(_DATA_DIR / "features_metadata.json")))
+TEMP_SCALE_PATH    = Path(os.getenv("TEMP_SCALE_PATH",   str(_DATA_DIR / "temperature_scaling.json")))
+MEDIANS_PATH       = Path(os.getenv("MEDIANS_PATH",      str(_DATA_DIR / "feature_medians_v3.json")))
 
 
-def _risk_label(prob: float) -> str:
-    for threshold, label in RISK_LEVELS:
-        if prob >= threshold:
-            return label
-    return "⚪ Très faible"
+def _risk_label(p: Optional[float]) -> tuple[str, str]:
+    if p is None:         return "⚪ Inconnu",     "unknown"
+    if p < 0.20:          return "🟢 Très faible", "very_low"
+    if p < 0.35:          return "🟡 Faible",      "low"
+    if p < 0.50:          return "🟡 Modéré",      "moderate"
+    if p < 0.70:          return "🟠 Élevé",       "high"
+    return                       "🔴 Très élevé",  "very_high"
 
 
-class Scorer:
-    """Loads models once and scores feature vectors."""
+def _t_scale(p: float, T: float) -> float:
+    """p_cal = sigmoid(logit(p) / T)."""
+    p = max(1e-7, min(1 - 1e-7, p))
+    return float(1.0 / (1.0 + math.exp(-math.log(p / (1 - p)) / T)))
+
+
+class HybridMLPScorer:
 
     def __init__(self):
-        self.models: dict[str, lgb.Booster] = {}
-        self.medians: dict[str, float] = {}
-        self._ready = False
+        self.models:        dict = {}
+        self.preprocessors: dict = {}
+        self.ready:         bool = False
+        self._feature_names: list = []
+        self._temperatures:  dict = {}
+        self._medians:       dict = {}
 
-        self.using_fallback_medians: bool = False
-        self.medians_source: str | None = None
-        self.last_imputed_feature_count: int = 0
-        self.last_imputed_features: list[str] = []
+    def initialize(self) -> None:
+        import tensorflow as tf
 
-    def initialize(self):
-        """Load models and compute imputation medians. Call once at startup."""
-        self._load_models()
-        self._load_medians()
-        self._ready = True
-        logger.info("Scorer ready.")
+        # Features metadata
+        meta = json.loads(FEATURES_META_PATH.read_text())
+        self._feature_names = meta["feature_names"]
+        logger.info(f"Features : {len(self._feature_names)} colonnes")
 
-    @property
-    def ready(self) -> bool:
-        return self._ready and bool(self.models)
+        # Temperature scaling
+        self._temperatures = json.loads(TEMP_SCALE_PATH.read_text())["temperatures"]
+        logger.info(f"Temperature scaling : {self._temperatures}")
 
-    def score(self, feats: pd.Series) -> dict:
+        # Medians (fallback pour features absentes de feats_s)
+        if MEDIANS_PATH.exists():
+            self._medians = json.loads(MEDIANS_PATH.read_text())
+
+        # MLP 7d + 30d
+        for horizon, keras_path, prep_path in [
+            ("7d",  MLP_7D_PATH,  PREP_7D_PATH),
+            ("30d", MLP_30D_PATH, PREP_30D_PATH),
+        ]:
+            if not keras_path.exists():
+                raise FileNotFoundError(f"Modèle manquant : {keras_path}")
+            if not prep_path.exists():
+                raise FileNotFoundError(f"Préprocesseur manquant : {prep_path}")
+            self.models[horizon]        = tf.keras.models.load_model(keras_path)
+            self.preprocessors[horizon] = joblib.load(prep_path)
+            logger.info(f"MLP {horizon} chargé : {keras_path.name}")
+
+        # LightGBM 365d (optionnel — conservé de l'ancienne version)
+        if LGBM_365D_PATH.exists():
+            import lightgbm as lgb
+            self.models["365d"] = (
+                lgb.Booster(model_file=str(LGBM_365D_PATH))
+                if LGBM_365D_PATH.suffix == ".txt"
+                else joblib.load(LGBM_365D_PATH)
+            )
+            logger.info(f"LightGBM 365d chargé : {LGBM_365D_PATH.name}")
+        else:
+            logger.warning("LightGBM 365d absent — prob_365d sera None")
+
+        self.ready = True
+        logger.info(f"HybridMLPScorer prêt. Modèles : {list(self.models.keys())}")
+
+    def _preprocess(self, feats_s: pd.Series, horizon: str) -> np.ndarray:
         """
-        Score a single event.
-
-        Parameters
-        ----------
-        feats : pd.Series — all computed features (superset is fine)
-
-        Returns
-        -------
-        dict with keys: prob_7d, prob_30d, prob_365d,
-                        risk_7d, risk_30d, risk_365d,
-                        features_used (int)
-
-        Each model selects its own expected features via model.feature_name(),
-        so mismatches between training and inference are handled gracefully.
+        Sélectionne les 67 features dans le bon ordre,
+        applique imputer → scaler, retourne un array (1, 67).
         """
+        prep         = self.preprocessors[horizon]
+        feature_cols = prep["feature_columns"]
+
+        row = {f: feats_s.get(f, np.nan) for f in feature_cols}
+        df  = pd.DataFrame([row], columns=feature_cols)
+
+        x_imp = prep["imputer"].transform(df)
+        x_scl = prep["scaler"].transform(x_imp)
+        return x_scl.astype(np.float32)
+
+    def score(self, feats_s: pd.Series) -> dict:
         if not self.ready:
-            raise RuntimeError("Scorer not initialized.")
+            raise RuntimeError("Scorer non initialisé. Appeler initialize() d'abord.")
 
-        result = {}
-        total_used = 0
-        imputed_features_all: set[str] = set()
-        total_imputed_count = 0
+        # MLP 7d / 30d
+        probs: dict = {}
+        for horizon, label_key in [("7d", "label_7d"), ("30d", "label_30d")]:
+            x   = self._preprocess(feats_s, horizon)
+            raw = float(self.models[horizon].predict(x, verbose=0)[0][0])
+            probs[horizon] = _t_scale(raw, self._temperatures.get(label_key, 1.0))
 
-        for horizon, model in self.models.items():
-            # Use the exact feature list the model was trained with
-            expected = model.feature_name()
-            vec = pd.Series({col: feats.get(col, np.nan) for col in expected})
-
-            # Impute NaN with training medians
-            nan_mask = vec.isna()
-            missing_cols = list(vec.index[nan_mask])
-            nan_count = len(missing_cols)
-
-            for col in missing_cols:
-                vec[col] = self.medians.get(col, 0.0)
-
-            imputed_features_all.update(missing_cols)
-            total_imputed_count += nan_count
-
-            X = vec.values.reshape(1, -1)
-            prob = float(model.predict(X)[0])
-
-            result[f"prob_{horizon}"] = round(prob, 4)
-            result[f"risk_{horizon}"] = _risk_label(prob)
-            total_used = max(total_used, len(expected) - nan_count)
-
-        self.last_imputed_feature_count = total_imputed_count
-        self.last_imputed_features = sorted(imputed_features_all)
-
-        if total_imputed_count > 0:
-            logger.info(
-                "Score imputation used %s values across %s unique features.",
-                total_imputed_count,
-                len(self.last_imputed_features),
-            )
-
-        result["features_used"] = total_used
-        result["imputed_feature_count"] = total_imputed_count
-        result["imputed_unique_features"] = len(self.last_imputed_features)
-
-        # Fill missing horizons as None
-        for h in ["7d", "30d", "365d"]:
-            if f"prob_{h}" not in result:
-                result[f"prob_{h}"] = None
-                result[f"risk_{h}"] = "N/A (model not loaded)"
-
-        return result
-
-    # ── Private ───────────────────────────────────────────────────────────────
-
-    def _load_models(self):
-        for horizon, path in MODEL_FILES.items():
-            if path.exists():
-                try:
-                    self.models[horizon] = lgb.Booster(model_file=str(path))
-                    logger.info(f"Model {horizon} loaded from {path}")
-                except Exception as e:
-                    logger.error(f"Failed to load model {horizon}: {e}")
+        # LightGBM 365d
+        prob_365d: Optional[float] = None
+        if "365d" in self.models:
+            import lightgbm as lgb
+            m = self.models["365d"]
+            if isinstance(m, lgb.Booster):
+                feat_names = m.feature_name()
+                x365 = np.array(
+                    [feats_s.get(f, self._medians.get(f, 0.0)) for f in feat_names],
+                    dtype=np.float32,
+                ).reshape(1, -1)
+                prob_365d = float(m.predict(x365)[0])
             else:
-                logger.warning(f"Model file not found: {path}")
-
-        if not self.models:
-            raise FileNotFoundError(
-                f"No model files found in {MODELS_DIR}. "
-                "Run train_multi_horizon.py first."
-            )
-
-    def _load_medians(self):
-        """Load training medians from packaged JSON artifact, fallback to dataset_v3.csv, then constants."""
-        medians_json = RUNTIME_ASSETS_DIR / "feature_medians_v3.json"
-        dataset = FEATURES_DIR / "dataset_v3.csv"
-
-        if medians_json.exists():
-            try:
-                logger.info(f"Loading imputation medians from {medians_json}…")
-                self.medians = json.loads(medians_json.read_text())
-                self.medians = {k: float(v) for k, v in self.medians.items()}
-                self.using_fallback_medians = False
-                self.medians_source = str(medians_json)
-                logger.info(
-                    f"Medians loaded for {len(self.medians)} features from {medians_json}."
+                feat_names = getattr(m, "feature_names_in_", self._feature_names)
+                x365 = pd.DataFrame(
+                    [[feats_s.get(f, self._medians.get(f, 0.0)) for f in feat_names]],
+                    columns=feat_names,
                 )
-                return
-            except Exception as e:
-                logger.warning(f"Could not read median artifact {medians_json}: {e}")
+                prob_365d = float(m.predict_proba(x365)[0][1])
 
-        if dataset.exists():
-            try:
-                logger.info("Computing imputation medians from dataset_v3.csv…")
-                df = pd.read_csv(dataset, usecols=FEATURE_COLS, low_memory=False)
-                self.medians = df.median(numeric_only=True).to_dict()
-                self.medians = {k: float(v) for k, v in self.medians.items()}
-                self.using_fallback_medians = False
-                self.medians_source = str(dataset)
-                logger.info(
-                    f"Medians computed for {len(self.medians)} features from {dataset}."
-                )
-                return
-            except Exception as e:
-                logger.warning(f"Could not read dataset_v3.csv: {e}")
+        risk_7d,   risk_7d_code   = _risk_label(probs["7d"])
+        risk_30d,  risk_30d_code  = _risk_label(probs["30d"])
+        risk_365d, risk_365d_code = _risk_label(prob_365d)
 
-        logger.warning("Using fallback medians.")
-        self.medians = FALLBACK_MEDIANS.copy()
-        self.using_fallback_medians = True
-        self.medians_source = "FALLBACK_MEDIANS"
+        return {
+            "prob_7d":        round(probs["7d"], 4),
+            "prob_30d":       round(probs["30d"], 4),
+            "prob_365d":      round(prob_365d, 4) if prob_365d is not None else None,
+            "risk_7d":        risk_7d,
+            "risk_30d":       risk_30d,
+            "risk_365d":      risk_365d,
+            "risk_7d_code":   risk_7d_code,
+            "risk_30d_code":  risk_30d_code,
+            "risk_365d_code": risk_365d_code,
+            "features_used":  len(self._feature_names),
+        }
 
 
-# Singleton
-scorer = Scorer()
+# Singleton — import existant dans main.py inchangé
+scorer = HybridMLPScorer()
