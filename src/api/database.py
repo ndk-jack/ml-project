@@ -23,7 +23,6 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from .serving_metadata import get_serving_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +143,6 @@ def insert_scored_event(result: dict) -> bool:
         }
 
         client = _get_client()
-        # upsert: if same event_id scored again, update rather than duplicate
         response = (
             client.table("scored_events")
             .upsert(row, on_conflict="event_id")
@@ -226,11 +224,6 @@ def get_recent_events(
     """
     Query the most recent scored events from Supabase.
     Falls back to an empty list if Supabase is unavailable.
-
-    Parameters
-    ----------
-    limit       : max rows to return (default 50)
-    min_prob_7d : optional filter — only events with prob_7d >= this value
     """
     if not _is_enabled():
         return []
@@ -249,8 +242,6 @@ def get_recent_events(
         response = query.execute()
         rows = response.data if hasattr(response, "data") else []
 
-        # Normalise column names to match ScoreResponse schema
-        # (event_time → datetime, so the API response stays consistent)
         for row in rows:
             if "event_datetime" in row and "datetime" not in row:
                 row["datetime"] = row.pop("event_datetime")
@@ -320,16 +311,7 @@ _PUBLIC_REQUIRED_COLS = ("event_id", "event_datetime", "scored_at")
 
 
 def list_scored_events_public(limit: int = 50) -> list[dict]:
-    """
-    Return scored events for the public API feed.
-
-    Required fields for a row to be considered valid:
-      - event_id        (primary identifier)
-      - event_datetime  (event time)
-      - scored_at       (when the prediction was made)
-
-    Rows missing any of these are filtered at the DB level.
-    """
+    """Return scored events for the public API feed."""
     if not _is_enabled():
         return []
 
@@ -368,4 +350,27 @@ def get_scored_event_public(event_id: str) -> Optional[dict]:
         return rows[0] if rows else None
     except Exception as e:
         logger.error(f"Failed to get scored_event public for {event_id}: {e}")
+        return None
+
+
+def get_latest_eval_snapshot() -> dict | None:
+    """Retourne le snapshot d'évaluation le plus récent depuis model_eval_snapshots."""
+    if not _is_enabled():
+        return None
+
+    try:
+        client = _get_client()  # ← correction : _get_client() et non supabase
+        response = (
+            client.table("model_eval_snapshots")
+            .select(
+                "model_version, horizon, sample_size, "
+                "roc_auc, brier_score, positive_rate, evaluated_at, notes"
+            )
+            .order("evaluated_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        return response.data[0] if response.data else None
+    except Exception as e:
+        logger.error(f"get_latest_eval_snapshot failed: {e}")
         return None

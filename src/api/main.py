@@ -2,16 +2,17 @@
 main.py — FastAPI application for real-time earthquake sequence scoring.
 
 Startup sequence:
-  1. CatalogManager.initialize() — load historical catalog + external data
-  2. Scorer.initialize() — load LightGBM models + runtime medians
-  3. APScheduler starts background polling every POLL_INTERVAL minutes
-  4. Initial rolling refresh is triggered in a background thread
+1. CatalogManager.initialize() — load historical catalog + external data
+2. Scorer.initialize() — load LightGBM models + runtime medians
+3. APScheduler starts background polling every POLL_INTERVAL minutes
+4. Initial rolling refresh is triggered in a background thread
 
 Endpoints:
   GET  /health               — service status
   GET  /score/latest?n=10    — score the N most recent M≥4 USGS events
   POST /score                — score a single event (manual input)
   GET  /events               — list recently scored events (in-memory cache)
+  GET  /api/v1/model-accuracy — latest model evaluation snapshot
 
 Run:
   cd ~/ml-project
@@ -41,6 +42,7 @@ from .router_public import router as public_router
 from . import database
 
 # ── Logging ───────────────────────────────────────────────────────────────────
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
@@ -49,9 +51,10 @@ logging.basicConfig(
 logger = logging.getLogger("api")
 
 # ── Config ────────────────────────────────────────────────────────────────────
+
 POLL_INTERVAL_MINUTES = 5
-AUTO_SCORE_EVENTS_N = 20
-MAX_CACHE_SIZE        = 500    # keep last N scored events in memory
+AUTO_SCORE_EVENTS_N   = 20
+MAX_CACHE_SIZE        = 500
 USGS_LATEST_URL       = (
     "https://earthquake.usgs.gov/fdsnws/event/1/query"
     "?format=geojson&minmagnitude=4.0&orderby=time"
@@ -61,7 +64,6 @@ USGS_LATEST_URL       = (
 _scored_cache: list[dict] = []
 _scheduler: Optional[BackgroundScheduler] = None
 
-
 # ── Lifespan ──────────────────────────────────────────────────────────────────
 
 @asynccontextmanager
@@ -70,13 +72,9 @@ async def lifespan(app: FastAPI):
 
     logger.info("=== Earthquake Scoring API — startup ===")
 
-    # 1. Load static data
     catalog.initialize()
-
-    # 2. Load models
     scorer.initialize()
 
-    # 3. Start background scheduler
     _scheduler = BackgroundScheduler(timezone="UTC")
     _scheduler.add_job(
         catalog.refresh_rolling,
@@ -95,7 +93,6 @@ async def lifespan(app: FastAPI):
     _scheduler.start()
     logger.info(f"USGS polling and auto-scoring started (every {POLL_INTERVAL_MINUTES} min)")
 
-    # 4. Trigger one initial rolling refresh in background (non-blocking startup)
     threading.Thread(
         target=catalog.refresh_rolling,
         daemon=True,
@@ -105,11 +102,9 @@ async def lifespan(app: FastAPI):
     logger.info("=== API ready ===")
     yield
 
-    # Shutdown
     if _scheduler:
         _scheduler.shutdown(wait=False)
     logger.info("=== API shutdown ===")
-
 
 # ── App ───────────────────────────────────────────────────────────────────────
 
@@ -132,7 +127,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
 class EventInput(BaseModel):
@@ -146,7 +140,6 @@ class EventInput(BaseModel):
         examples=["2024-01-17T12:34:56Z"],
     )
     event_id:  Optional[str] = Field(None, description="Optional event identifier")
-
 
 class ScoreResponse(BaseModel):
     event_id:      Optional[str]
@@ -164,6 +157,15 @@ class ScoreResponse(BaseModel):
     features_used: int
     scored_at:     str
 
+class ModelAccuracyResponse(BaseModel):
+    model_version:  str
+    horizon:        str
+    sample_size:    int
+    roc_auc:        Optional[float]
+    brier_score:    Optional[float]
+    positive_rate:  Optional[float]
+    evaluated_at:   str
+    notes:          Optional[str]
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -180,7 +182,6 @@ def _parse_dt(dt_str: Optional[str]) -> datetime:
             status_code=422,
             detail=f"Invalid datetime format: '{dt_str}'. Use ISO-8601 UTC."
         )
-
 
 def _score_event(
     lat: float, lon: float, depth: float, magnitude: float,
@@ -203,18 +204,13 @@ def _score_event(
         **scores,
     }
 
-    # Add to in-memory cache
     _scored_cache.append(result)
     if len(_scored_cache) > MAX_CACHE_SIZE:
         _scored_cache.pop(0)
 
-    # Persist to Supabase (fire-and-forget style)
     database.insert_scored_event(result)
-
     database.insert_prediction_log(result)
-
     return result
-
 
 def _fetch_usgs_latest(n: int) -> list[dict]:
     """Fetch the N most recent M≥4 events from USGS."""
@@ -245,7 +241,6 @@ def _fetch_usgs_latest(n: int) -> list[dict]:
         })
     return events
 
-
 def _auto_score_job() -> None:
     """Scheduled job: fetch latest USGS events, score, and persist to Supabase."""
     if not scorer.ready:
@@ -270,6 +265,7 @@ def _auto_score_job() -> None:
         c = f["geometry"]["coordinates"]
         if p.get("mag") is None:
             continue
+
         ev = {
             "event_id":  f["id"],
             "latitude":  c[1],
@@ -280,10 +276,10 @@ def _auto_score_job() -> None:
                 p["time"] / 1000, tz=timezone.utc
             ).isoformat(),
         }
+
         try:
             if database.prediction_log_exists_for_event_model(ev["event_id"], model_version):
                 continue
-
             dt = _parse_dt(ev["datetime"])
             _score_event(
                 ev["latitude"], ev["longitude"],
@@ -295,25 +291,20 @@ def _auto_score_job() -> None:
 
     logger.info(f"auto_score_job: scored and persisted {scored}/{len(features)} events.")
 
-
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @app.get("/health", tags=["System"])
 def health():
     """Service status and component availability."""
-
-    rolling_ok = not catalog.rolling_df.empty and catalog.rolling_tree is not None
+    rolling_ok    = not catalog.rolling_df.empty and catalog.rolling_tree is not None
     historical_ok = catalog.hist_tree is not None and getattr(catalog, "hist_loaded", False)
 
     rolling_min = (
-        catalog.rolling_df["datetime"].min().isoformat()
-        if rolling_ok else None
+        catalog.rolling_df["datetime"].min().isoformat() if rolling_ok else None
     )
     rolling_max = (
-        catalog.rolling_df["datetime"].max().isoformat()
-        if rolling_ok else None
+        catalog.rolling_df["datetime"].max().isoformat() if rolling_ok else None
     )
-
     historical_min = (
         catalog.hist_df["datetime"].min().isoformat()
         if historical_ok and not catalog.hist_df.empty else None
@@ -322,21 +313,13 @@ def health():
         catalog.hist_df["datetime"].max().isoformat()
         if historical_ok and not catalog.hist_df.empty else None
     )
-
     external_ok = (
         catalog.gem_fault_union is not None and
         not catalog.wsm_df.empty and
         catalog.pb_tree is not None
     )
-
     supabase_ok = database.is_ready()
-
-    overall_ok = (
-        scorer.ready and
-        rolling_ok and
-        historical_ok and
-        external_ok
-    )
+    overall_ok  = scorer.ready and rolling_ok and historical_ok and external_ok
 
     return {
         "status": "ok" if overall_ok else "degraded",
@@ -405,7 +388,7 @@ def score_latest(
     if not scorer.ready:
         raise HTTPException(status_code=503, detail="Models not loaded yet.")
 
-    events = _fetch_usgs_latest(n)
+    events  = _fetch_usgs_latest(n)
     results = []
     for ev in events:
         dt = _parse_dt(ev["datetime"])
@@ -469,6 +452,27 @@ def list_events(
                   if e.get("prob_7d") is not None
                   and e["prob_7d"] >= min_prob_7d]
     return events[:limit]
+
+
+@app.get(
+    "/api/v1/model-accuracy",
+    response_model=ModelAccuracyResponse,
+    tags=["Model Evaluation"],
+    summary="Latest model evaluation snapshot",
+)
+def model_accuracy():
+    """
+    Returns the most recent evaluation snapshot from model_eval_snapshots.
+    Includes ROC-AUC, Brier score, sample size and evaluation window.
+    Updated automatically as new prediction outcomes are resolved.
+    """
+    snap = database.get_latest_eval_snapshot()
+    if snap is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No evaluation snapshot available yet."
+        )
+    return snap
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
