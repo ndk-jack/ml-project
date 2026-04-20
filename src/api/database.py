@@ -24,6 +24,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from .serving_metadata import get_serving_metadata
 
+VALID_HORIZONS = {"7d", "30d"}
 
 logger = logging.getLogger(__name__)
 
@@ -354,19 +355,21 @@ def get_scored_event_public(event_id: str) -> Optional[dict]:
         return None
 
 
-def get_latest_eval_snapshot() -> dict | None:
-    """Retourne le snapshot d'évaluation le plus récent depuis model_eval_snapshots."""
+def get_latest_eval_snapshot(horizon: str = "7d") -> dict | None:
     if not _is_enabled():
         return None
-
+    if horizon not in VALID_HORIZONS:
+        logger.warning(f"get_latest_eval_snapshot: invalid horizon {horizon!r}")
+        return None
     try:
-        client = _get_client()  # ← correction : _get_client() et non supabase
+        client = _get_client()
         response = (
             client.table("model_eval_snapshots")
             .select(
                 "model_version, horizon, sample_size, "
                 "roc_auc, brier_score, positive_rate, evaluated_at, notes"
             )
+            .eq("horizon", horizon)
             .order("evaluated_at", desc=True)
             .limit(1)
             .execute()
@@ -375,3 +378,28 @@ def get_latest_eval_snapshot() -> dict | None:
     except Exception as e:
         logger.error(f"get_latest_eval_snapshot failed: {e}")
         return None
+
+
+def get_eval_snapshot_history(horizon: str = "7d", limit: int = 20) -> list[dict]:
+    if not _is_enabled():
+        return []
+    if horizon not in VALID_HORIZONS:
+        logger.warning(f"get_eval_snapshot_history: invalid horizon {horizon!r}")
+        return []
+    try:
+        client = _get_client()
+        response = (
+            client.table("model_eval_snapshots")
+            .select(
+                "model_version, horizon, sample_size, "
+                "roc_auc, brier_score, positive_rate, evaluated_at, notes"
+            )
+            .eq("horizon", horizon)
+            .order("evaluated_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return response.data if response.data else []
+    except Exception as e:
+        logger.error(f"get_eval_snapshot_history failed: {e}")
+        return []
