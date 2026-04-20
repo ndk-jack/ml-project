@@ -22,6 +22,7 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from .serving_metadata import get_serving_metadata
 
 
 logger = logging.getLogger(__name__)
