@@ -455,18 +455,34 @@ def list_events(
 
 
 @app.get(
+    "/api/v1/model-accuracy/history",
+    response_model=list[ModelAccuracyResponse],
+    tags=["Model Evaluation"],
+    summary="Model evaluation history",
+)
+def model_accuracy_history(
+    horizon: str = Query(default="7d", pattern="^(7d|30d)$"),
+    limit: int = Query(default=20, ge=1, le=100),
+):
+    """Returns evaluation snapshots sorted by date descending."""
+    return database.get_eval_snapshot_history(horizon=horizon, limit=limit)
+
+
+@app.get(
     "/api/v1/model-accuracy",
     response_model=ModelAccuracyResponse,
     tags=["Model Evaluation"],
     summary="Latest model evaluation snapshot",
 )
-def model_accuracy():
+def model_accuracy(
+    horizon: str = Query(default="7d", pattern="^(7d|30d)$"),
+):
     """
     Returns the most recent evaluation snapshot from model_eval_snapshots.
     Includes ROC-AUC, Brier score, sample size and evaluation window.
     Updated automatically as new prediction outcomes are resolved.
     """
-    snap = database.get_latest_eval_snapshot()
+    snap = database.get_latest_eval_snapshot(horizon=horizon)
     if snap is None:
         raise HTTPException(
             status_code=404,
